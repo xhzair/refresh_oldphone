@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import androidx.core.net.toUri
 
 class SystemActions(
     private val context: Context,
@@ -58,6 +59,19 @@ class SystemActions(
 
     fun openSystemSettings() {
         openSettings(Intent(Settings.ACTION_SETTINGS))
+    }
+
+    fun openUrl(url: String) {
+        val intent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
+            if (context !is Activity) addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            context.startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+            openSystemSettings()
+        } catch (_: SecurityException) {
+            openSystemSettings()
+        }
     }
 
     fun openSelfAppDetails() {

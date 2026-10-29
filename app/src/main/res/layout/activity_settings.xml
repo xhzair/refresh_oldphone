@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:fitsSystemWindows="true"
+    android:scrollbarStyle="insideInset">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/screen_padding"
+        android:paddingTop="@dimen/screen_padding"
+        android:paddingEnd="@dimen/screen_padding"
+        android:paddingBottom="48dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/back"
+                style="@style/TextAction"
+                android:layout_width="wrap_content"
+                android:text="@string/settings_back" />
+
+            <TextView
+                style="@style/HomeText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_weight="1"
+                android:text="@string/settings_title"
+                android:textSize="28sp" />
+        </LinearLayout>
+
+        <TextView
+            style="@style/SettingsSectionHeader"
+            android:text="@string/settings_section_orientation" />
+
+        <RadioGroup
+            android:id="@+id/orientationGroup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/settings_hint_gap"
+            android:orientation="vertical">
+
+            <RadioButton
+                android:id="@+id/orientationAuto"
+                style="@style/SettingsChoice"
+                android:text="@string/settings_orientation_auto" />
+
+            <RadioButton
+                android:id="@+id/orientationPortrait"
+                style="@style/SettingsChoice"
+                android:text="@string/settings_orientation_portrait" />
+
+            <RadioButton
+                android:id="@+id/orientationLandscape"
+                style="@style/SettingsChoice"
+                android:text="@string/settings_orientation_landscape" />
+        </RadioGroup>
+
+        <TextView
+            style="@style/SettingsHint"
+            android:text="@string/settings_orientation_hint" />
+
+        <TextView
+            style="@style/SettingsSectionHeader"
+            android:text="@string/settings_section_appearance" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/keepScreenOnSwitch"
+            style="@style/SettingsSwitch"
+            android:text="@string/settings_keep_screen_on" />
+
+        <TextView
+            style="@style/SettingsHint"
+            android:text="@string/settings_keep_screen_on_warning" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/ambientPhraseSwitch"
+            style="@style/SettingsSwitch"
+            android:text="@string/settings_ambient_phrase" />
+
+        <TextView
+            style="@style/SettingsHint"
+            android:text="@string/settings_ambient_phrase_hint" />
+
+        <TextView
+            style="@style/SettingsSectionHeader"
+            android:text="@string/settings_section_apps" />
+
+        <TextView
+            style="@style/SettingsHint"
+            android:text="@string/settings_apps_hint" />
+
+        <TextView
+            android:id="@+id/appsSummary"
+            style="@style/HomeText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/settings_hint_gap"
+            android:text="@string/settings_apps_none" />
+
+        <Button
+            android:id="@+id/selectApps"
+            style="@style/TextAction"
+            android:layout_width="match_parent"
+            android:layout_marginTop="@dimen/settings_item_gap"
+            android:text="@string/settings_apps_title" />
+
+        <TextView
+            style="@style/SettingsSectionHeader"
+            android:text="@string/settings_section_permission" />
+
+        <TextView
+            android:id="@+id/notificationState"
+            style="@style/HomeText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/settings_hint_gap"
+            android:accessibilityLiveRegion="polite"
+            android:text="@string/settings_notification_off" />
+
+        <TextView
+            style="@style/SettingsHint"
+            android:text="@string/settings_notification_hint" />
+
+        <Button
+            android:id="@+id/openNotificationAccess"
+            style="@style/TextAction"
+            android:layout_width="match_parent"
+            android:layout_marginTop="@dimen/settings_item_gap"
+            android:text="@string/settings_open_notification_access" />
+
+        <TextView
+            style="@style/SettingsSectionHeader"
+            android:text="@string/settings_section_system" />
+
+        <Button
+            android:id="@+id/openWifi"
+            style="@style/TextAction"
+            android:layout_width="match_parent"
+            android:layout_marginTop="@dimen/settings_item_gap"
+            android:text="@string/settings_open_wifi" />
+
+        <Button
+            android:id="@+id/openMobileNetwork"
+            style="@style/TextAction"
+            android:layout_width="match_parent"
+            android:layout_marginTop="@dimen/settings_item_gap"
+            android:text="@string/settings_open_mobile_network" />
+
+        <Button
+            android:id="@+id/openBluetooth"
+            style="@style/TextAction"
+            android:layout_width="match_parent"
+            android:layout_marginTop="@dimen/settings_item_gap"
+            android:text="@string/settings_open_bluetooth" />
+
+        <Button
+            android:id="@+id/openVolume"
+            style="@style/TextAction"
+            android:layout_width="match_parent"
+            android:layout_marginTop="@dimen/settings_item_gap"
+            android:text="@string/settings_open_volume" />
+
+        <Button
+            android:id="@+id/openAppDetails"
+            style="@style/TextAction"
+            android:layout_width="match_parent"
+            android:layout_marginTop="@dimen/settings_item_gap"
+            android:text="@string/settings_open_app_details" />
+
+        <Button
+            android:id="@+id/openSystemSettings"
+            style="@style/TextAction"
+            android:layout_width="match_parent"
+            android:layout_marginTop="@dimen/settings_item_gap"
+            android:text="@string/settings_open_system" />
+
+        <TextView
+            style="@style/SettingsSectionHeader"
+            android:text="@string/settings_section_home" />
+
+        <TextView
+            style="@style/SettingsHint"
+            android:text="@string/settings_home_hint" />
+
+        <Button
+            android:id="@+id/chooseHome"
+            style="@style/TextAction"
+            android:layout_width="match_parent"
+            android:layout_marginTop="@dimen/settings_item_gap"
+            android:text="@string/settings_choose_home" />
+
+        <Button
+            android:id="@+id/restoreHome"
+            style="@style/SettingsPrimaryAction"
+            android:layout_marginTop="@dimen/settings_item_gap"
+            android:text="@string/settings_restore_home" />
+
+        <TextView
+            style="@style/SettingsHint"
+            android:text="@string/settings_restore_home_hint" />
+
+        <TextView
+            style="@style/SettingsSectionHeader"
+            android:text="@string/settings_section_clear" />
+
+        <TextView
+            style="@style/SettingsHint"
+            android:text="@string/settings_clear_hint" />
+
+        <Button
+            android:id="@+id/clearLocalConfig"
+            style="@style/TextAction"
+            android:layout_width="match_parent"
+            android:layout_marginTop="@dimen/settings_item_gap"
+            android:text="@string/settings_clear_button" />
+
+        <TextView
+            style="@style/SettingsSectionHeader"
+            android:text="@string/settings_section_about" />
+
+        <TextView
+            android:id="@+id/versionText"
+            style="@style/HomeText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/settings_hint_gap"
+            android:textColor="@color/muted" />
+
+        <Button
+            android:id="@+id/openGithub"
+            style="@style/TextAction"
+            android:layout_width="match_parent"
+            android:layout_marginTop="@dimen/settings_item_gap"
+            android:text="@string/settings_github" />
+    </LinearLayout>
+</ScrollView>
