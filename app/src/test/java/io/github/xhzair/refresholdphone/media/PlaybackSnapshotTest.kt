@@ -4,6 +4,23 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PlaybackSnapshotTest {
+    @Test fun `availability remains denied across disconnected restart until reconnect`() {
+        val registry = ListenerConnectionRegistry()
+        var settingsEnabled = true
+        val policy = PlaybackAvailabilityPolicy({ registry.connected }, { settingsEnabled })
+        registry.update(true)
+        val observed = mutableListOf(policy.available())
+        registry.update(false)
+        observed += policy.available()
+        // A restarted bridge consults the same process connection state.
+        observed += PlaybackAvailabilityPolicy({ registry.connected }, { settingsEnabled }).available()
+        registry.update(true)
+        observed += policy.available()
+        settingsEnabled = false
+        observed += policy.available()
+        assertEquals(listOf(true, false, false, true, false), observed)
+    }
+
     @Test fun `disconnected listener denies access even while settings permission remains enabled`() {
         assertFalse(listenerConnectionAccess(connected = false, settingsEnabled = true))
         assertFalse(listenerConnectionAccess(connected = false, settingsEnabled = false))
@@ -52,16 +69,28 @@ class PlaybackSnapshotTest {
         assertFalse(map(playing = false).playing)
     }
 
-    @Test fun `controls derive exclusively from platform action bits`() {
+    @Test fun `controls derive from current state and platform action bits`() {
         // Stable PlaybackState action values; no Android framework objects needed.
         for (action in listOf(2L, 4L, 512L)) {
-            assertEquals(PlaybackControls(true, false, false), map(actions = action).controls)
+            assertEquals(PlaybackControls(true, false, false), map(playing = action == 2L, actions = action).controls)
         }
         assertEquals(PlaybackControls(false, true, false), map(actions = 16).controls)
         assertEquals(PlaybackControls(false, false, true), map(actions = 32).controls)
-        assertEquals(PlaybackControls(true, true, true), map(actions = 2 or 16 or 32).controls)
+        assertEquals(PlaybackControls(true, true, true), map(playing = true, actions = 2 or 16 or 32).controls)
         assertEquals(PlaybackControls(), map(actions = 1 or 8 or 256).controls)
         assertEquals(PlaybackControls(), map(actions = 0).controls)
+    }
+
+    @Test fun `playing snapshot disables play-only capability and accepts pause or toggle`() {
+        assertFalse(map(playing = true, actions = 4).controls.canPlayPause)
+        assertTrue(map(playing = true, actions = 2).controls.canPlayPause)
+        assertTrue(map(playing = true, actions = 512).controls.canPlayPause)
+    }
+
+    @Test fun `paused snapshot disables pause-only capability and accepts play or toggle`() {
+        assertFalse(map(playing = false, actions = 2).controls.canPlayPause)
+        assertTrue(map(playing = false, actions = 4).controls.canPlayPause)
+        assertTrue(map(playing = false, actions = 512).controls.canPlayPause)
     }
 
     @Test fun `selection prefers playing then recent supported then manager order`() {

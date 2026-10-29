@@ -29,6 +29,14 @@ internal object PlaybackActions {
     const val PLAY_PAUSE = 512L
 }
 
+internal enum class PlaybackCommand { PLAY, PAUSE }
+
+internal fun playPauseCommand(playing: Boolean, actions: Long): PlaybackCommand? {
+    val required = if (playing) PlaybackActions.PAUSE else PlaybackActions.PLAY
+    if (actions and (required or PlaybackActions.PLAY_PAUSE) == 0L) return null
+    return if (playing) PlaybackCommand.PAUSE else PlaybackCommand.PLAY
+}
+
 internal object PlaybackSnapshotMapper {
     fun map(packageName: String, providerLabel: String, title: String?, artist: String?,
             durationMs: Long, positionMs: Long, playing: Boolean, actions: Long): PlaybackSnapshot {
@@ -40,7 +48,7 @@ internal object PlaybackSnapshotMapper {
         return PlaybackSnapshot(packageName, label, title?.trim().orEmpty().ifEmpty { label },
             artist?.trim().orEmpty(), duration, position, playing,
             PlaybackControls(
-                actions and (PlaybackActions.PLAY or PlaybackActions.PAUSE or PlaybackActions.PLAY_PAUSE) != 0L,
+                playPauseCommand(playing, actions) != null,
                 actions and PlaybackActions.PREVIOUS != 0L,
                 actions and PlaybackActions.NEXT != 0L,
             ))

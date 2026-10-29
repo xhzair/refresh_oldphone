@@ -40,15 +40,14 @@ internal fun selectPlaybackSession(sessions: List<PlaybackSessionCandidate>): In
         ?: supported.firstOrNull() ?: sessions.indices.firstOrNull()
 }
 
-internal enum class PlaybackCommand { PLAY, PAUSE }
-
 internal fun listenerConnectionAccess(connected: Boolean, settingsEnabled: Boolean): Boolean =
     connected && settingsEnabled
 
-internal fun playPauseCommand(playing: Boolean, actions: Long): PlaybackCommand? {
-    val required = if (playing) PlaybackActions.PAUSE else PlaybackActions.PLAY
-    if (actions and (required or PlaybackActions.PLAY_PAUSE) == 0L) return null
-    return if (playing) PlaybackCommand.PAUSE else PlaybackCommand.PLAY
+internal class PlaybackAvailabilityPolicy(
+    private val listenerConnected: () -> Boolean,
+    private val settingsEnabled: () -> Boolean,
+) {
+    fun available(): Boolean = listenerConnectionAccess(listenerConnected(), settingsEnabled())
 }
 
 /** All bridge state is confined to main. Off-main calls enqueue work, in call order.
@@ -59,6 +58,7 @@ class AndroidExternalPlaybackBridge(context: Context) : ExternalPlaybackBridge {
     private val manager = applicationContext.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
     private val component = ComponentName(applicationContext, MediaNotificationListener::class.java)
     private val handler = Handler(Looper.getMainLooper())
+    private val availability = PlaybackAvailabilityPolicy({ mediaListenerConnections.connected }, ::accessEnabled)
     private var started = false
     private var revision = 0L
     private var lifecycle = 0L
@@ -67,11 +67,19 @@ class AndroidExternalPlaybackBridge(context: Context) : ExternalPlaybackBridge {
     private var connectionListener: ((Boolean) -> Unit)? = null
     private var sessionsListener: MediaSessionManager.OnActiveSessionsChangedListener? = null
     private var controller: MediaController? = null
-    private var controllerCallback: MediaController.Callback? = null
     private var snapshot: PlaybackSnapshot? = null
     private val recentActivity = mutableMapOf<String, Long>()
     private var activitySequence = 0L
     private var previousPlaying = emptySet<MediaSession.Token>()
+    private val candidates = PlaybackSessionCandidates<MediaSession.Token, MediaController>(
+        tokenOf = { it.sessionToken },
+        describe = {
+            PlaybackSessionCandidate(it.packageName,
+                it.playbackState?.state == PlaybackState.STATE_PLAYING, recentActivity[it.packageName])
+        },
+        observe = ::observeController,
+        onChanged = ::candidateChanged,
+    )
 
     override fun start(onPlaybackChanged: (PlaybackSnapshot?) -> Unit, onAccessChanged: (Boolean) -> Unit) = onMain {
         revision++
@@ -80,9 +88,9 @@ class AndroidExternalPlaybackBridge(context: Context) : ExternalPlaybackBridge {
         if (!started) {
             started = true
             val epoch = ++lifecycle
-            val listener: (Boolean) -> Unit = { connected -> onMain {
+            val listener: (Boolean) -> Unit = { _ -> onMain {
                 if (started && lifecycle == epoch) {
-                    if (listenerConnectionAccess(connected, accessEnabled())) {
+                    if (availability.available()) {
                         refreshSessions()
                     } else {
                         unavailable(false)
@@ -92,9 +100,9 @@ class AndroidExternalPlaybackBridge(context: Context) : ExternalPlaybackBridge {
             connectionListener = listener
             mediaListenerConnections.add(listener)
         }
-        // Report settings access before any binder calls, and honor a reentrant stop/start.
+        // Report operational access before binder calls, and honor a reentrant stop/start.
         val expected = revision
-        accessCallback?.invoke(accessEnabled())
+        accessCallback?.invoke(availability.available())
         if (started && revision == expected) refreshSessions()
     }
 
@@ -105,7 +113,8 @@ class AndroidExternalPlaybackBridge(context: Context) : ExternalPlaybackBridge {
         connectionListener?.let(mediaListenerConnections::remove)
         connectionListener = null
         removeSessionsListener()
-        selectController(null)
+        candidates.clear()
+        controller = null
         snapshot = null
         playbackCallback = null
         accessCallback = null
@@ -121,38 +130,46 @@ class AndroidExternalPlaybackBridge(context: Context) : ExternalPlaybackBridge {
         applicationContext.packageName in NotificationManagerCompat.getEnabledListenerPackages(applicationContext)
     } catch (_: SecurityException) { false }
 
-    private fun refreshSessions(excluded: MediaSession.Token? = null) {
+    private fun refreshSessions() {
         if (!started) return
-        if (!accessEnabled()) { unavailable(false); return }
+        if (!availability.available()) { unavailable(false); return }
         val sessions = try {
             if (sessionsListener == null) {
                 val epoch = lifecycle
-                val listener = MediaSessionManager.OnActiveSessionsChangedListener {
+                lateinit var listener: MediaSessionManager.OnActiveSessionsChangedListener
+                listener = MediaSessionManager.OnActiveSessionsChangedListener {
                     onMain {
                         // Removal on disconnect also invalidates already queued session events.
-                        if (started && lifecycle == epoch && sessionsListener != null) refreshSessions()
+                        if (started && lifecycle == epoch && sessionsListener === listener) refreshSessions()
                     }
                 }
                 manager.addOnActiveSessionsChangedListener(listener, component, handler)
                 sessionsListener = listener
             }
-            manager.getActiveSessions(component).filter { it.sessionToken != excluded }
+            manager.getActiveSessions(component)
         } catch (_: SecurityException) { unavailable(false); return }
-        catch (_: IllegalArgumentException) { unavailable(accessEnabled()); return }
+        catch (_: IllegalArgumentException) { unavailable(availability.available()); return }
 
+        try {
+            candidates.sync(sessions)
+        } catch (_: SecurityException) { unavailable(false); return }
+        catch (_: IllegalArgumentException) { unavailable(availability.available()); return }
+        catch (_: IllegalStateException) { unavailable(availability.available()); return }
+        refreshPlayback()
+    }
+
+    private fun refreshPlayback() {
+        if (!started) return
+        if (!availability.available()) { unavailable(false); return }
         val nextSnapshot = try {
-            val playing = sessions.filter { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+            val playing = candidates.values().filter { it.playbackState?.state == PlaybackState.STATE_PLAYING }
             playing.filter { it.sessionToken !in previousPlaying }.forEach { markActive(it) }
             previousPlaying = playing.mapTo(mutableSetOf()) { it.sessionToken }
-            val index = selectPlaybackSession(sessions.map {
-                PlaybackSessionCandidate(it.packageName, it.playbackState?.state == PlaybackState.STATE_PLAYING,
-                    recentActivity[it.packageName])
-            })
-            selectController(index?.let(sessions::get))
+            controller = candidates.selected()
             controller?.let(::toSnapshot)
         } catch (_: SecurityException) { unavailable(false); return }
-        catch (_: IllegalArgumentException) { selectController(null); null }
-        catch (_: IllegalStateException) { selectController(null); null }
+        catch (_: IllegalArgumentException) { controller = null; null }
+        catch (_: IllegalStateException) { controller = null; null }
         snapshot = nextSnapshot
         emit(true, nextSnapshot)
     }
@@ -163,39 +180,38 @@ class AndroidExternalPlaybackBridge(context: Context) : ExternalPlaybackBridge {
         }
     }
 
-    private fun selectController(next: MediaController?) {
-        if (controller?.sessionToken == next?.sessionToken) return
-        val old = controller
-        val oldCallback = controllerCallback
-        controller = null
-        controllerCallback = null
-        if (old != null && oldCallback != null) {
-            try { old.unregisterCallback(oldCallback) }
+    private fun candidateChanged(source: MediaController, event: CandidateSessionEvent) {
+        when (event) {
+            CandidateSessionEvent.PLAYBACK -> {
+                markActive(source)
+                refreshPlayback()
+            }
+            CandidateSessionEvent.METADATA -> {
+                if (controller?.sessionToken == source.sessionToken) refreshPlayback()
+            }
+            CandidateSessionEvent.DESTROYED -> refreshPlayback()
+        }
+    }
+
+    private fun observeController(
+        source: MediaController,
+        onChanged: (CandidateSessionEvent) -> Unit,
+    ): () -> Unit {
+        val epoch = lifecycle
+        val callback = object : MediaController.Callback() {
+            private fun changed(event: CandidateSessionEvent) = onMain {
+                if (started && lifecycle == epoch) onChanged(event)
+            }
+            override fun onMetadataChanged(metadata: MediaMetadata?) = changed(CandidateSessionEvent.METADATA)
+            override fun onPlaybackStateChanged(state: PlaybackState?) = changed(CandidateSessionEvent.PLAYBACK)
+            override fun onSessionDestroyed() = changed(CandidateSessionEvent.DESTROYED)
+        }
+        source.registerCallback(callback, handler)
+        return {
+            try { source.unregisterCallback(callback) }
             catch (_: SecurityException) { /* Access was revoked during cleanup. */ }
             catch (_: IllegalArgumentException) { /* Already removed by framework. */ }
         }
-        if (next == null) return
-        val epoch = lifecycle
-        val callback = object : MediaController.Callback() {
-            private fun changed() = onMain {
-                if (started && lifecycle == epoch && controller?.sessionToken == next.sessionToken) {
-                    markActive(next)
-                    refreshSessions()
-                }
-            }
-            override fun onMetadataChanged(metadata: MediaMetadata?) = changed()
-            override fun onPlaybackStateChanged(state: PlaybackState?) = changed()
-            override fun onSessionDestroyed() = onMain {
-                if (started && lifecycle == epoch && controller?.sessionToken == next.sessionToken) {
-                    selectController(null)
-                    refreshSessions(excluded = next.sessionToken)
-                }
-            }
-        }
-        // Set ownership only after framework registration succeeds.
-        next.registerCallback(callback, handler)
-        controller = next
-        controllerCallback = callback
     }
 
     private fun toSnapshot(source: MediaController): PlaybackSnapshot {
@@ -231,7 +247,8 @@ class AndroidExternalPlaybackBridge(context: Context) : ExternalPlaybackBridge {
 
     private fun unavailable(access: Boolean) {
         removeSessionsListener()
-        selectController(null)
+        candidates.clear()
+        controller = null
         snapshot = null
         previousPlaying = emptySet()
         emit(access, null)
@@ -276,7 +293,7 @@ class AndroidExternalPlaybackBridge(context: Context) : ExternalPlaybackBridge {
 
     private fun transport(action: (MediaController) -> Unit) = onMain {
         if (!started) return@onMain
-        if (!accessEnabled()) { unavailable(false); return@onMain }
+        if (!availability.available()) { unavailable(false); return@onMain }
         val source = controller ?: return@onMain
         try { action(source) }
         catch (_: SecurityException) { unavailable(false) }
