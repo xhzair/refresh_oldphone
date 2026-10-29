@@ -16,14 +16,10 @@ class HomeViewModel(
 ) : ViewModel() {
     private val lock = Any()
     private var currentState = HomeState()
-    private class Generation {
-        var playbackAttempted = false
-        var statusAttempted = false
-    }
-
+    private class Generation
+    private enum class Source { PLAYBACK, STATUS }
     private var activeGeneration: Generation? = null
-    // Retain ownership after invalidation so cleanup can detect a reentrant restart.
-    private var latestGeneration: Generation? = null
+    private val sourceOwners = mutableMapOf<Source, Generation>()
     private val mutableState = MutableLiveData(currentState)
     val state: LiveData<HomeState> = mutableState
 
@@ -32,24 +28,23 @@ class HomeViewModel(
     fun start() {
         val generation = synchronized(lock) {
             if (activeGeneration != null) return
-            Generation().also { activeGeneration = it; latestGeneration = it }
+            Generation().also { activeGeneration = it }
         }
         // Never hold the reducer lock across dependencies: start can callback immediately.
         try {
             val apps = catalog.load(selectedPackages().toSet()).toList()
             reduce(generation) { it.copy(apps = apps) }
-            if (!isActive(generation)) return
-            generation.playbackAttempted = true
+            if (!acquireSource(generation, Source.PLAYBACK)) return
             playbackBridge.start(
                 { playback -> reduce(generation) { it.copy(playback = playback) } },
                 { access -> reduce(generation) { it.copy(notificationAccessGranted = access) } },
             )
-            if (!isActive(generation)) return
-            generation.statusAttempted = true
+            if (!acquireSource(generation, Source.STATUS)) return
             statusSource.start { status -> reduce(generation) { it.copy(systemStatus = status) } }
         } catch (failure: Exception) {
             // A synchronous callback may already have stopped/replaced this lifecycle.
-            if (invalidate(generation)) stopSources(generation, failure)
+            invalidate(generation)
+            stopSources(generation, failure)
             throw failure
         }
     }
@@ -70,12 +65,17 @@ class HomeViewModel(
     private fun stopSources(generation: Generation, startupFailure: Exception? = null): Exception? {
         var failure = startupFailure
         val sources = listOf(
-            generation.playbackAttempted to playbackBridge::stop,
-            generation.statusAttempted to statusSource::stop,
+            Source.PLAYBACK to playbackBridge::stop,
+            Source.STATUS to statusSource::stop,
         )
-        for ((attempted, stopSource) in sources) {
-            // Cleanup itself can synchronously start a new lifecycle using these adapters.
-            if (!attempted || synchronized(lock) { latestGeneration !== generation }) continue
+        for ((source, stopSource) in sources) {
+            val owned = synchronized(lock) {
+                if (sourceOwners[source] !== generation) false
+                else { sourceOwners.remove(source); true }
+            }
+            // Release only this source before calling out: teardown can reenter start.
+            // A new generation that never attempts the other source cannot steal it.
+            if (!owned) continue
             try { stopSource() } catch (cleanupFailure: Exception) {
                 if (failure == null) failure = cleanupFailure
                 else if (failure !== cleanupFailure) failure.addSuppressed(cleanupFailure)
@@ -84,8 +84,12 @@ class HomeViewModel(
         return failure
     }
 
-    private fun isActive(generation: Generation): Boolean = synchronized(lock) {
-        activeGeneration === generation
+    private fun acquireSource(generation: Generation, source: Source): Boolean = synchronized(lock) {
+        if (activeGeneration !== generation) return false
+        // Publish ownership before start, including partial registrations that throw.
+        // Never write it after start: a synchronous callback may transfer it again.
+        sourceOwners[source] = generation
+        true
     }
 
     private fun reduce(generation: Generation, update: (HomeState) -> HomeState) {

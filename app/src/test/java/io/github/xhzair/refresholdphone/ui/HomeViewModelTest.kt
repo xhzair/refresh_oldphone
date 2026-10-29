@@ -153,6 +153,58 @@ class HomeViewModelTest {
         assertEquals(0, source.stops)
         source.callbacks.last()(status)
         assertEquals(status, model.state.value!!.systemStatus)
+        model.stop()
+        assertEquals(2, bridge.stops)
+        assertEquals(1, source.stops)
+    }
+
+    @Test fun nestedSelectionFailureLeavesOldStatusOwnedUntilOuterCleanup() = observing {
+        assertNestedFailureCleansOldStatus { failure -> selectionFailure = failure }
+    }
+
+    @Test fun nestedCatalogFailureLeavesOldStatusOwnedUntilOuterCleanup() = observing {
+        assertNestedFailureCleansOldStatus { failure -> catalog.failure = failure }
+    }
+
+    @Test fun nestedPlaybackFailureTransfersOnlyPlaybackOwnership() = observing {
+        assertNestedFailureCleansOldStatus(expectedPlaybackStops = 2) { failure ->
+            bridge.onStart = { _, _ -> throw failure }
+        }
+    }
+
+    private fun assertNestedFailureCleansOldStatus(
+        expectedPlaybackStops: Int = 1,
+        failNestedStart: (Exception) -> Unit,
+    ) {
+        val outerFailure = IllegalStateException("old status partially registered")
+        val nestedFailure = IllegalArgumentException("nested startup")
+        source.onStart = { throw outerFailure }
+        bridge.onStop = {
+            bridge.onStop = null
+            failNestedStart(nestedFailure)
+            assertSame(nestedFailure, assertThrows(Exception::class.java) { model.start() })
+        }
+        assertSame(outerFailure, assertThrows(Exception::class.java) { model.start() })
+        assertEquals(expectedPlaybackStops, bridge.stops)
+        assertEquals(1, source.stops)
+        // Both generations are inactive. Retained callbacks and another stop do nothing.
+        val before = model.state.value
+        bridge.playbackCallbacks.forEach { it(playback) }
+        bridge.accessCallbacks.forEach { it(true) }
+        source.callbacks.forEach { it(status) }
+        model.stop()
+        assertEquals(before, model.state.value)
+        assertEquals(expectedPlaybackStops, bridge.stops)
+        assertEquals(1, source.stops)
+        // A fresh successful lifecycle remains usable and owns both cleanup calls.
+        selectionFailure = null
+        catalog.failure = null
+        bridge.onStart = null
+        source.onStart = null
+        model.start()
+        model.stop()
+        assertEquals(expectedPlaybackStops + 1, bridge.stops)
+        assertEquals(2, source.stops)
     }
 
     @Test fun startLoadsCurrentSelectionAndStartsEachSourceOnce() = observing {
