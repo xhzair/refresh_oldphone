@@ -31,34 +31,31 @@ class SystemActions(
     }
 
     fun openWifiSettings() {
-        openSettings(Intent(Settings.ACTION_WIFI_SETTINGS))
+        openShortcut(SettingsShortcut.WIFI)
     }
 
     fun openMobileNetworkSettings() {
-        openSettings(
-            Intent(Settings.ACTION_DATA_ROAMING_SETTINGS),
-            Intent(Settings.ACTION_WIRELESS_SETTINGS),
-        )
+        openShortcut(SettingsShortcut.MOBILE_NETWORK)
     }
 
     fun openBluetoothSettings() {
-        openSettings(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
+        openShortcut(SettingsShortcut.BLUETOOTH)
     }
 
     fun openVolumeSettings() {
-        openSettings(Intent(Settings.ACTION_SOUND_SETTINGS))
+        openShortcut(SettingsShortcut.VOLUME)
     }
 
     fun openNotificationAccessSettings() {
-        openSettings(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+        openShortcut(SettingsShortcut.NOTIFICATION_ACCESS)
     }
 
     fun openHomeChooser() {
-        openSettings(Intent(Settings.ACTION_HOME_SETTINGS))
+        openShortcut(SettingsShortcut.HOME)
     }
 
     fun openSystemSettings() {
-        openSettings(Intent(Settings.ACTION_SETTINGS))
+        openShortcut(SettingsShortcut.SYSTEM)
     }
 
     fun openUrl(url: String) {
@@ -76,6 +73,10 @@ class SystemActions(
 
     fun openSelfAppDetails() {
         openAppDetails(context.packageName)
+    }
+
+    private fun openShortcut(shortcut: SettingsShortcut) {
+        openSettings(*settingsShortcutActions(shortcut).map(::Intent).toTypedArray())
     }
 
     private fun openSettings(vararg candidates: Intent) {
@@ -108,4 +109,30 @@ class SystemActions(
             false
         }
     }
+}
+
+internal enum class SettingsShortcut {
+    WIFI,
+    MOBILE_NETWORK,
+    BLUETOOTH,
+    VOLUME,
+    NOTIFICATION_ACCESS,
+    HOME,
+    SYSTEM,
+}
+
+/**
+ * Documented public Settings actions for each shortcut, tried in order. When none resolves,
+ * [SystemActions] falls back to the general settings screen instead of guessing at vendor
+ * components or privileged settings.
+ */
+internal fun settingsShortcutActions(shortcut: SettingsShortcut): List<String> = when (shortcut) {
+    SettingsShortcut.WIFI -> listOf(Settings.ACTION_WIFI_SETTINGS)
+    SettingsShortcut.MOBILE_NETWORK ->
+        listOf(Settings.ACTION_DATA_ROAMING_SETTINGS, Settings.ACTION_WIRELESS_SETTINGS)
+    SettingsShortcut.BLUETOOTH -> listOf(Settings.ACTION_BLUETOOTH_SETTINGS)
+    SettingsShortcut.VOLUME -> listOf(Settings.ACTION_SOUND_SETTINGS)
+    SettingsShortcut.NOTIFICATION_ACCESS -> listOf(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+    SettingsShortcut.HOME -> listOf(Settings.ACTION_HOME_SETTINGS)
+    SettingsShortcut.SYSTEM -> listOf(Settings.ACTION_SETTINGS)
 }
