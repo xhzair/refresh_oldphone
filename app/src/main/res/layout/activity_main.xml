@@ -1,0 +1,146 @@
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:padding="@dimen/screen_padding">
+<TextClock
+    android:id="@+id/clockSmall" style="@style/HomeText"
+    android:format12Hour="h:mm"
+    android:format24Hour="HH:mm"
+    android:fontFeatureSettings="tnum"
+    android:textSize="32sp"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toTopOf="parent" />
+<TextClock
+    android:id="@+id/dateText" style="@style/HomeText"
+    android:format12Hour="M月d日 EEEE"
+    android:format24Hour="M月d日 EEEE"
+    android:textColor="@color/muted"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toBottomOf="@id/clockSmall"/>
+<TextView
+    android:id="@+id/systemStatus" style="@style/HomeText"
+    android:layout_width="0dp"
+    android:textColor="@color/muted"
+    android:layout_marginTop="8dp"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintTop_toBottomOf="@id/dateText"/>
+<TextView
+    android:id="@+id/ambientPhrase" style="@style/HomeText"
+    android:text="@string/ambient_phrase"
+    android:textColor="@color/muted"
+    android:layout_marginTop="24dp"
+    android:visibility="gone"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toBottomOf="@id/systemStatus"/>
+<Button
+    android:id="@+id/settings" style="@style/TextAction"
+    android:layout_width="wrap_content"
+    android:text="@string/settings"
+    android:drawableStart="@drawable/ic_settings"
+    android:drawablePadding="8dp"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintBottom_toBottomOf="parent"/>
+<androidx.recyclerview.widget.RecyclerView
+    android:id="@+id/appList"
+    android:layout_width="0dp"
+    android:layout_height="104dp"
+    android:clipToPadding="false"
+    android:orientation="horizontal"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintBottom_toTopOf="@id/settings"
+    android:layout_marginBottom="16dp"/>
+<FrameLayout
+    android:id="@+id/artworkFrame"
+    android:layout_width="0dp"
+    android:layout_height="0dp"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintTop_toBottomOf="@id/systemStatus"
+    app:layout_constraintBottom_toTopOf="@id/trackTitle"
+    app:layout_constraintDimensionRatio="1:1"
+    app:layout_constraintWidth_max="260dp"
+    app:layout_constraintHeight_max="260dp"
+    android:layout_marginTop="16dp"
+    android:layout_marginBottom="16dp">
+<ImageView
+    android:id="@+id/artwork"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:scaleType="centerCrop"
+    android:contentDescription="@string/artwork_description"/>
+<ImageView
+    android:id="@+id/artworkFallback"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:src="@drawable/ic_artwork"
+    android:padding="40dp"
+    android:background="@drawable/control_background"
+    android:importantForAccessibility="no"/>
+</FrameLayout>
+<TextView
+    android:id="@+id/trackTitle" style="@style/HomeText"
+    android:layout_width="0dp"
+    android:textSize="28sp"
+    android:maxLines="1"
+    android:ellipsize="end"
+    android:gravity="center"
+    app:layout_constraintBottom_toTopOf="@id/trackArtist"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"/>
+<TextView
+    android:id="@+id/trackArtist" style="@style/HomeText"
+    android:layout_width="0dp"
+    android:textColor="@color/muted"
+    android:maxLines="1"
+    android:ellipsize="end"
+    android:gravity="center"
+    app:layout_constraintBottom_toTopOf="@id/position"
+    android:layout_marginBottom="12dp"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"/>
+<ProgressBar
+    android:id="@+id/position" style="?android:attr/progressBarStyleHorizontal"
+    android:layout_width="0dp"
+    android:layout_height="8dp"
+    android:contentDescription="@string/progress_description"
+    app:layout_constraintBottom_toTopOf="@id/playPause"
+    android:layout_marginBottom="16dp"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"/>
+<ImageButton
+    android:id="@+id/playPause" style="@style/Control"
+    android:src="@drawable/ic_play"
+    android:contentDescription="@string/play"
+    app:layout_constraintBottom_toTopOf="@id/permissionPrompt"
+    android:layout_marginBottom="12dp"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"/>
+<ImageButton
+    android:id="@+id/previous" style="@style/Control"
+    android:src="@drawable/ic_previous"
+    android:contentDescription="@string/previous"
+    android:layout_marginEnd="16dp"
+    app:layout_constraintEnd_toStartOf="@id/playPause"
+    app:layout_constraintTop_toTopOf="@id/playPause"/>
+<ImageButton
+    android:id="@+id/next" style="@style/Control"
+    android:src="@drawable/ic_next"
+    android:contentDescription="@string/next"
+    android:layout_marginStart="16dp"
+    app:layout_constraintStart_toEndOf="@id/playPause"
+    app:layout_constraintTop_toTopOf="@id/playPause"/>
+<Button
+    android:id="@+id/permissionPrompt" style="@style/TextAction"
+    android:layout_width="0dp"
+    android:text="@string/permission_prompt"
+    android:textColor="@color/accent"
+    app:layout_constraintBottom_toTopOf="@id/appList"
+    android:layout_marginBottom="16dp"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintEnd_toEndOf="parent"/>
+</androidx.constraintlayout.widget.ConstraintLayout>

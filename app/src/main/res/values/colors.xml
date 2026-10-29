@@ -1,8 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
-    <color name="primary">#FF8AB4F8</color>
-    <color name="primary_dark">#FF669DF6</color>
-    <color name="accent">#FF81C995</color>
+<color name="black">#0B0D0F</color>
+<color name="white">#F4F1EA</color>
+<color name="primary">#14181C</color>
+<color name="primary_dark">#0B0D0F</color>
+<color name="accent">#D7A84B</color>
+<color name="muted">#A7ABB0</color>
+<color name="surface">#14181C</color>
+<color name="pressed">#313941</color>
 </resources>

@@ -1,5 +1,27 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Refresh Old Phone</string>
-    <string name="media_notification_listener_label">Media controls</string>
+<string name="app_name">媒体桌面</string>
+<string name="media_notification_listener_label">媒体播放状态</string>
+<string name="empty_title">安静待播</string>
+<string name="empty_artist">选择下方应用，开始聆听</string>
+<string name="recent_app">最近使用：%1$s</string>
+<string name="system_status">%1$s · 电量 %2$d%%%3$s</string>
+<string name="charging"> · 充电中</string>
+<string name="installed">已安装</string>
+<string name="missing">未安装</string>
+<string name="app_description">%1$s，%2$s</string>
+<string name="settings">设置</string>
+<string name="play">播放</string>
+<string name="pause">暂停</string>
+<string name="previous">上一首</string>
+<string name="next">下一首</string>
+<string name="permission_prompt">开启播放状态显示</string>
+<string name="permission_title">通知使用权</string>
+<string name="permission_explanation">系统会提示可访问通知。本应用仅使用此授权读取媒体会话的播放信息，不读取、记录或传输通知正文。拒绝授权仍可打开媒体应用，您可随时在系统设置中关闭。</string>
+<string name="open_settings">前往系统设置</string>
+<string name="cancel">暂不开启</string>
+<string name="app_missing">尚未安装 %1$s，请通过官方渠道获取</string>
+<string name="launch_failed">%1$s 当前版本不可启动</string>
+<string name="ambient_phrase">留一点时间，慢慢听。</string>
+<string name="artwork_description">当前播放封面</string>
+<string name="progress_description">播放进度</string>
 </resources>
