@@ -4,6 +4,16 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PlaybackSnapshotTest {
+    @Test fun `disconnected listener denies access even while settings permission remains enabled`() {
+        assertFalse(listenerConnectionAccess(connected = false, settingsEnabled = true))
+        assertFalse(listenerConnectionAccess(connected = false, settingsEnabled = false))
+    }
+
+    @Test fun `connected listener still requires settings permission`() {
+        assertTrue(listenerConnectionAccess(connected = true, settingsEnabled = true))
+        assertFalse(listenerConnectionAccess(connected = true, settingsEnabled = false))
+    }
+
     private fun map(title: String? = null, artist: String? = null,
                     label: String = " Provider ", duration: Long = 0,
                     position: Long = 0, playing: Boolean = false, actions: Long = 0) =

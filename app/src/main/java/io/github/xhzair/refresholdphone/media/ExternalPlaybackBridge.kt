@@ -42,6 +42,9 @@ internal fun selectPlaybackSession(sessions: List<PlaybackSessionCandidate>): In
 
 internal enum class PlaybackCommand { PLAY, PAUSE }
 
+internal fun listenerConnectionAccess(connected: Boolean, settingsEnabled: Boolean): Boolean =
+    connected && settingsEnabled
+
 internal fun playPauseCommand(playing: Boolean, actions: Long): PlaybackCommand? {
     val required = if (playing) PlaybackActions.PAUSE else PlaybackActions.PLAY
     if (actions and (required or PlaybackActions.PLAY_PAUSE) == 0L) return null
@@ -79,7 +82,11 @@ class AndroidExternalPlaybackBridge(context: Context) : ExternalPlaybackBridge {
             val epoch = ++lifecycle
             val listener: (Boolean) -> Unit = { connected -> onMain {
                 if (started && lifecycle == epoch) {
-                    if (connected) refreshSessions() else disconnected()
+                    if (listenerConnectionAccess(connected, accessEnabled())) {
+                        refreshSessions()
+                    } else {
+                        unavailable(false)
+                    }
                 }
             } }
             connectionListener = listener
@@ -121,7 +128,10 @@ class AndroidExternalPlaybackBridge(context: Context) : ExternalPlaybackBridge {
             if (sessionsListener == null) {
                 val epoch = lifecycle
                 val listener = MediaSessionManager.OnActiveSessionsChangedListener {
-                    onMain { if (started && lifecycle == epoch) refreshSessions() }
+                    onMain {
+                        // Removal on disconnect also invalidates already queued session events.
+                        if (started && lifecycle == epoch && sessionsListener != null) refreshSessions()
+                    }
                 }
                 manager.addOnActiveSessionsChangedListener(listener, component, handler)
                 sessionsListener = listener
@@ -217,11 +227,6 @@ class AndroidExternalPlaybackBridge(context: Context) : ExternalPlaybackBridge {
             } else bitmap.copy(Bitmap.Config.ARGB_8888, false)
         } catch (_: IllegalArgumentException) { null }
         catch (_: IllegalStateException) { null }
-    }
-
-    private fun disconnected() {
-        removeSessionsListener()
-        unavailable(accessEnabled())
     }
 
     private fun unavailable(access: Boolean) {
