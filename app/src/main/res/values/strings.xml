@@ -1,4 +1,7 @@
 <resources>
+<string name="home_time_format_12_hour">h:mm</string>
+<string name="home_time_format_24_hour">HH:mm</string>
+<string name="home_date_format">M月d日 EEEE</string>
 <string name="app_name">媒体桌面</string>
 <string name="media_notification_listener_label">媒体播放状态</string>
 <string name="empty_title">安静待播</string>

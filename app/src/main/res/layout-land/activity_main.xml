@@ -13,8 +13,8 @@
     app:layout_constraintGuide_percent="0.56"/>
 <TextClock
     android:id="@+id/clockSmall" style="@style/HomeText"
-    android:format12Hour="h:mm"
-    android:format24Hour="HH:mm"
+    android:format12Hour="@string/home_time_format_12_hour"
+    android:format24Hour="@string/home_time_format_24_hour"
     android:fontFeatureSettings="tnum"
     android:textSize="72sp"
     app:layout_constraintStart_toStartOf="parent"
@@ -22,8 +22,8 @@
     android:layout_marginTop="0dp"/>
 <TextClock
     android:id="@+id/dateText" style="@style/HomeText"
-    android:format12Hour="M月d日 EEEE"
-    android:format24Hour="M月d日 EEEE"
+    android:format12Hour="@string/home_date_format"
+    android:format24Hour="@string/home_date_format"
     android:textColor="@color/muted"
     app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintTop_toBottomOf="@id/clockSmall"/>
