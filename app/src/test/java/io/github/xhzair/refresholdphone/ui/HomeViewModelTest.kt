@@ -30,7 +30,130 @@ class HomeViewModelTest {
     private val bridge = FakeBridge()
     private val source = FakeStatusSource()
     private var selected = setOf("music")
-    private val model = HomeViewModel(catalog, { selected }, bridge, source)
+    private var selectionFailure: Exception? = null
+    private val model = HomeViewModel(catalog, {
+        selectionFailure?.let { throw it }
+        selected
+    }, bridge, source)
+
+    @Test fun selectionFailureAllowsRetryWithoutStoppingUnattemptedSources() = observing {
+        val failure = IllegalStateException("preferences")
+        selectionFailure = failure
+        assertSame(failure, assertThrows(Exception::class.java) { model.start() })
+        assertEquals(0, bridge.stops)
+        assertEquals(0, source.stops)
+        selectionFailure = null
+        model.start()
+        assertEquals(apps, model.state.value!!.apps)
+        assertEquals(1, bridge.starts)
+        assertEquals(1, source.starts)
+    }
+
+    @Test fun catalogFailureAllowsRetryWithoutStoppingUnattemptedSources() = observing {
+        val failure = IllegalStateException("catalog")
+        catalog.failure = failure
+        assertSame(failure, assertThrows(Exception::class.java) { model.start() })
+        assertEquals(0, bridge.stops)
+        assertEquals(0, source.stops)
+        catalog.failure = null
+        model.start()
+        assertEquals(2, catalog.selections.size)
+        assertEquals(1, bridge.starts)
+        assertEquals(1, source.starts)
+    }
+
+    @Test fun partialPlaybackStartIsStoppedAndFailedCallbacksAreFencedOnRetry() = observing {
+        val failure = IllegalStateException("playback start")
+        bridge.onStart = { _, _ -> throw failure }
+        assertSame(failure, assertThrows(Exception::class.java) { model.start() })
+        assertEquals(1, bridge.stops)
+        assertEquals(0, source.stops)
+        val oldPlayback = bridge.playbackCallbacks.single()
+        val oldAccess = bridge.accessCallbacks.single()
+        oldPlayback(playback)
+        oldAccess(true)
+        assertEquals(HomeState(apps = apps), model.state.value)
+        bridge.onStart = null
+        model.start()
+        oldPlayback(playback)
+        oldAccess(true)
+        assertEquals(HomeState(apps = apps), model.state.value)
+        assertEquals(2, bridge.starts)
+        assertEquals(1, source.starts)
+    }
+
+    @Test fun partialStatusStartStopsBothSourcesAndPreservesOriginalFailure() = observing {
+        val failure = IllegalStateException("status start")
+        val bridgeCleanupFailure = IllegalArgumentException("bridge cleanup")
+        val statusCleanupFailure = IllegalArgumentException("status cleanup")
+        source.onStart = { throw failure }
+        bridge.onStop = { throw bridgeCleanupFailure }
+        source.onStop = { throw statusCleanupFailure }
+        try {
+            assertSame(failure, assertThrows(Exception::class.java) { model.start() })
+        } finally {
+            bridge.onStop = null
+            source.onStop = null
+        }
+        assertEquals(listOf(bridgeCleanupFailure, statusCleanupFailure), failure.suppressed.toList())
+        assertEquals(1, bridge.stops)
+        assertEquals(1, source.stops)
+        val oldPlayback = bridge.playbackCallbacks.single()
+        val oldAccess = bridge.accessCallbacks.single()
+        val oldStatus = source.callbacks.single()
+        source.onStart = null
+        oldPlayback(playback)
+        oldAccess(true)
+        oldStatus(status)
+        assertEquals(HomeState(apps = apps), model.state.value)
+        model.start()
+        oldPlayback(playback)
+        oldAccess(true)
+        oldStatus(status)
+        assertEquals(HomeState(apps = apps), model.state.value)
+        assertEquals(2, bridge.starts)
+        assertEquals(2, source.starts)
+    }
+
+    @Test fun startupFailureAfterReentrantRestartDoesNotStopNewGeneration() = observing {
+        val failure = IllegalStateException("outer startup")
+        source.onStart = {
+            source.onStart = null
+            model.stop()
+            model.start()
+            throw failure
+        }
+        assertSame(failure, assertThrows(Exception::class.java) { model.start() })
+        assertEquals(2, bridge.starts)
+        assertEquals(2, source.starts)
+        assertEquals(1, bridge.stops)
+        assertEquals(1, source.stops)
+        model.start()
+        assertEquals(2, bridge.starts)
+        source.callbacks.first()(status)
+        assertEquals(HomeState(apps = apps), model.state.value)
+        source.callbacks.last()(status)
+        bridge.playbackCallbacks.last()(playback)
+        bridge.accessCallbacks.last()(true)
+        assertEquals(HomeState(apps, playback, status, true), model.state.value)
+    }
+
+    @Test fun failureCleanupDoesNotStopSourceOwnedByReentrantNewGeneration() = observing {
+        val failure = IllegalStateException("status startup")
+        source.onStart = { throw failure }
+        bridge.onStop = {
+            bridge.onStop = null
+            source.onStart = null
+            model.start()
+        }
+        assertSame(failure, assertThrows(Exception::class.java) { model.start() })
+        assertEquals(2, bridge.starts)
+        assertEquals(2, source.starts)
+        assertEquals(1, bridge.stops)
+        assertEquals(0, source.stops)
+        source.callbacks.last()(status)
+        assertEquals(status, model.state.value!!.systemStatus)
+    }
 
     @Test fun startLoadsCurrentSelectionAndStartsEachSourceOnce() = observing {
         model.start()
@@ -181,8 +304,10 @@ class HomeViewModelTest {
 
     private class FakeCatalog(val apps: List<MediaApp>) : MediaAppCatalog {
         val selections = mutableListOf<Set<String>>()
+        var failure: Exception? = null
         override fun load(selectedPackages: Set<String>): List<MediaApp> {
             selections += selectedPackages.toSet()
+            failure?.let { throw it }
             return apps
         }
     }
