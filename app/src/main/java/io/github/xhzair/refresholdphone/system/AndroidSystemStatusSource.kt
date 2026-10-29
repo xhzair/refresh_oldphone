@@ -17,8 +17,12 @@ class AndroidSystemStatusSource(context: Context) : SystemStatusSource {
     private val connectivityManager =
         applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
+    // All lifecycle/status state is guarded by this object's monitor. Framework callbacks
+    // may reenter on this thread or arrive concurrently on a binder/handler thread.
     private var statusCallback: ((SystemStatus) -> Unit)? = null
     private var started = false
+    private var generation = 0L
+    private var registering = false
     private var batteryReceiverRegistered = false
     private var networkCallbackRegistered = false
     private var connectivityReceiverRegistered = false
@@ -61,6 +65,7 @@ class AndroidSystemStatusSource(context: Context) : SystemStatusSource {
         }
     }
 
+    @Synchronized
     override fun start(onStatus: (SystemStatus) -> Unit) {
         statusCallback = onStatus
         if (started) {
@@ -69,16 +74,22 @@ class AndroidSystemStatusSource(context: Context) : SystemStatusSource {
         }
 
         started = true
-        registerBatteryReceiver()
-        registerConnectivityObserver()
-        refreshNetworkStatus()
-        emitCurrentStatus()
+        val startupGeneration = ++generation
+        runSystemStatusStartup(
+            isActive = { started && generation == startupGeneration },
+            ::registerBatteryReceiver,
+            ::registerConnectivityObserver,
+            ::refreshNetworkStatus,
+            ::emitCurrentStatus,
+        )
     }
 
+    @Synchronized
     override fun stop() {
         statusCallback = null
         if (!started) return
         started = false
+        generation++
 
         if (batteryReceiverRegistered) {
             try {
@@ -118,30 +129,33 @@ class AndroidSystemStatusSource(context: Context) : SystemStatusSource {
     }
 
     private fun registerBatteryReceiver() {
-        try {
-            val stickyBattery = ContextCompat.registerReceiver(
+        registering = true
+        val stickyBattery = try {
+            ContextCompat.registerReceiver(
                 applicationContext,
                 batteryReceiver,
                 IntentFilter(Intent.ACTION_BATTERY_CHANGED),
                 ContextCompat.RECEIVER_NOT_EXPORTED,
             )
-            batteryReceiverRegistered = true
-            stickyBattery?.let(::updateBattery)
         } catch (_: SecurityException) {
-            batteryReceiverRegistered = false
+            return
+        } finally {
+            registering = false
         }
+        batteryReceiverRegistered = true
+        // Deliver only after registration ownership is published, so a client may stop.
+        stickyBattery?.let(::updateBattery)
     }
 
     private fun registerConnectivityObserver() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            try {
+        // Synchronous framework callbacks can update state, but must not invoke the
+        // client until the corresponding registration has returned and is owned.
+        registering = true
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 connectivityManager.registerDefaultNetworkCallback(networkCallback)
                 networkCallbackRegistered = true
-            } catch (_: SecurityException) {
-                networkCallbackRegistered = false
-            }
-        } else {
-            try {
+            } else {
                 @Suppress("DEPRECATION")
                 ContextCompat.registerReceiver(
                     applicationContext,
@@ -150,12 +164,15 @@ class AndroidSystemStatusSource(context: Context) : SystemStatusSource {
                     ContextCompat.RECEIVER_NOT_EXPORTED,
                 )
                 connectivityReceiverRegistered = true
-            } catch (_: SecurityException) {
-                connectivityReceiverRegistered = false
             }
+        } catch (_: SecurityException) {
+            // Failed registrations never acquire ownership; battery updates remain available.
+        } finally {
+            registering = false
         }
     }
 
+    @Synchronized
     private fun updateBattery(intent: Intent) {
         if (!started) return
 
@@ -173,6 +190,7 @@ class AndroidSystemStatusSource(context: Context) : SystemStatusSource {
         emitCurrentStatus()
     }
 
+    @Synchronized
     private fun refreshNetworkStatus() {
         if (!started) return
 
@@ -190,6 +208,7 @@ class AndroidSystemStatusSource(context: Context) : SystemStatusSource {
         updateNetworkStatus(nextLabel)
     }
 
+    @Synchronized
     private fun updateNetworkStatus(nextLabel: String) {
         if (!started || nextLabel == networkLabel) return
 
@@ -197,8 +216,9 @@ class AndroidSystemStatusSource(context: Context) : SystemStatusSource {
         emitCurrentStatus()
     }
 
+    @Synchronized
     private fun emitCurrentStatus() {
-        if (!started) return
+        if (!started || registering) return
         statusCallback?.invoke(
             SystemStatus(
                 batteryPercent = batteryPercent,
