@@ -64,7 +64,7 @@
 <string name="settings_choose_home">选择默认桌面</string>
 <string name="settings_restore_home">恢复系统桌面</string>
 <string name="settings_restore_home_hint">在打开的页面中选择「系统桌面」或「MIUI 桌面」。如果系统没有提供选择器，请到本应用详情 → 默认打开 → 清除默认设置，然后按 Home 键选择原桌面。</string>
-<string name="settings_section_clear">清除本地配置</string>
+<string name="settings_section_clear">本地配置</string>
 <string name="settings_clear_hint">只清除本应用的界面偏好和已选应用，不会影响网易云音乐、QQ 音乐、小宇宙等第三方应用的数据或账号。</string>
 <string name="settings_clear_button">清除本地配置</string>
 <string name="settings_clear_title">清除本地配置？</string>
