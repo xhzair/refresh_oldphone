@@ -4,8 +4,10 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.view.TouchDelegate
 import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -48,6 +50,8 @@ class MainActivity : AppCompatActivity() {
         actions = SystemActions(this)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // The settings entry is visually 48 dp so it stays quiet; keep a 56 dp touch target.
+        expandTouchTarget(binding.settings, R.dimen.touch_target)
         viewModel = ViewModelProvider(this, (application as MediaShellApplication).homeViewModelFactory())[HomeViewModel::class.java]
         words = HomeWords(getString(R.string.empty_title), getString(R.string.empty_artist),
             getString(R.string.recent_app), getString(R.string.system_status), getString(R.string.charging))
@@ -95,6 +99,23 @@ class MainActivity : AppCompatActivity() {
             controller.hide(WindowInsetsCompat.Type.statusBars())
         } else {
             controller.show(WindowInsetsCompat.Type.statusBars())
+        }
+    }
+
+    /**
+     * Keeps a small visual button honest about its touch area: the accessibility target grows
+     * to [minSizeRes] while the painted circle stays compact.
+     */
+    private fun expandTouchTarget(view: View, minSizeRes: Int) {
+        val minSize = resources.getDimensionPixelSize(minSizeRes)
+        view.post {
+            val parent = view.parent as? View ?: return@post
+            val rect = Rect()
+            view.getHitRect(rect)
+            val dx = ((minSize - view.width) / 2).coerceAtLeast(0)
+            val dy = ((minSize - view.height) / 2).coerceAtLeast(0)
+            rect.inset(-dx, -dy)
+            parent.touchDelegate = TouchDelegate(rect, view)
         }
     }
 
