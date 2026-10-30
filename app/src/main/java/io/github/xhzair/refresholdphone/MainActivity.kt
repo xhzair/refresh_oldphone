@@ -15,6 +15,9 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModelProvider
 import io.github.xhzair.refresholdphone.apps.MediaApp
 import io.github.xhzair.refresholdphone.databinding.ActivityMainBinding
@@ -70,12 +73,29 @@ class MainActivity : AppCompatActivity() {
             OrientationMode.LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         }
         binding.root.keepScreenOn = preferences.keepScreenOn
+        applySystemBars()
         viewModel.start()
     }
 
     override fun onStop() {
         viewModel.stop()
         super.onStop()
+    }
+
+    /**
+     * The launcher has its own clock/battery row, so the system status bar can stay hidden for
+     * an immersive media device. Swiping from the top still reveals it transiently, and the
+     * navigation bar is never hidden so exiting to system UI stays possible.
+     */
+    private fun applySystemBars() {
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        if (preferences.hideStatusBar) {
+            controller.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(WindowInsetsCompat.Type.statusBars())
+        } else {
+            controller.show(WindowInsetsCompat.Type.statusBars())
+        }
     }
 
     private fun render(state: HomeState) {

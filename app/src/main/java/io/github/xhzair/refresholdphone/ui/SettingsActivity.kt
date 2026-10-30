@@ -49,6 +49,10 @@ class SettingsActivity : AppCompatActivity() {
             if (applyingPreferences) return@setOnCheckedChangeListener
             preferences.keepScreenOn = checked
         }
+        binding.hideStatusBarSwitch.setOnCheckedChangeListener { _, checked ->
+            if (applyingPreferences) return@setOnCheckedChangeListener
+            preferences.hideStatusBar = checked
+        }
         binding.selectApps.setOnClickListener { showAppSelection() }
         binding.openNotificationAccess.setOnClickListener {
             actions.openNotificationAccessSettings()
@@ -85,6 +89,7 @@ class SettingsActivity : AppCompatActivity() {
             },
         )
         binding.keepScreenOnSwitch.isChecked = preferences.keepScreenOn
+        binding.hideStatusBarSwitch.isChecked = preferences.hideStatusBar
         applyingPreferences = false
         refreshNotificationAccess()
         refreshAppSummary()

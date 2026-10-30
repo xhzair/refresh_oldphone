@@ -23,6 +23,12 @@ class UserPreferences(context: Context) {
             preferences.edit { putBoolean(KEY_KEEP_SCREEN_ON, value) }
         }
 
+    var hideStatusBar: Boolean
+        get() = preferences.getBoolean(KEY_HIDE_STATUS_BAR, true)
+        set(value) {
+            preferences.edit { putBoolean(KEY_HIDE_STATUS_BAR, value) }
+        }
+
     var lastLaunchedMediaPackage: String?
         get() = preferences.getString(KEY_LAST_LAUNCHED_MEDIA_PACKAGE, null)
             ?.takeUnless(String::isBlank)
@@ -45,6 +51,7 @@ class UserPreferences(context: Context) {
         const val PREFERENCES_FILE = "media_shell"
         const val KEY_ORIENTATION = "orientation"
         const val KEY_KEEP_SCREEN_ON = "keep_screen_on"
+        const val KEY_HIDE_STATUS_BAR = "hide_status_bar"
         const val KEY_LAST_LAUNCHED_MEDIA_PACKAGE = "last_launched_media_package"
         const val KEY_SELECTED_PACKAGES = "selected_apps"
     }
