@@ -67,6 +67,8 @@ adb shell am start -n io.github.xhzair.refresholdphone/.MainActivity
 7. “清除本地配置”只清本应用 SharedPreferences，第三方 App 数据不受影响。
 8. 锁屏/解锁、进程重建后首页可恢复，不出现崩溃循环。
 9. 默认隐藏系统状态栏；设置“隐藏系统状态栏”开关可恢复显示；顶部下滑能临时唤出状态栏。
+10. 单源互斥：先播放网易云音乐，再从 QQ 音乐或小宇宙开始播放，先前源自动暂停，只有后来源处于播放状态。
+11. 所有应用：首页网格图标可打开应用列表，能启动任意应用并返回媒体桌面。
 
 完整验收矩阵与真机证据见 `docs/device-testing-mix2s.md`。
 
