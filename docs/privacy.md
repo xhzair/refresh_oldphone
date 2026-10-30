@@ -30,7 +30,6 @@
 | --- | --- |
 | `orientation` | 方向偏好：`AUTO` / `PORTRAIT` / `LANDSCAPE` |
 | `keep_screen_on` | 是否保持屏幕常亮 |
-| `ambient_phrase_visible` | 横屏静默文案是否显示 |
 | `selected_apps` | 用户主动添加的附加媒体 App 包名集合 |
 | `last_launched_media_package` | 最近一次成功启动的媒体 App 包名（用于横屏空状态提示） |
 
