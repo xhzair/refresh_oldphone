@@ -16,8 +16,9 @@ object HomeUiModelMapper {
             nowElapsedMs: Long = 0L): HomeUiModel {
         val playback = state.playback
         val last = state.apps.firstOrNull { it.packageName == lastPackage }
-        val artist = if (playback != null) listOf(playback.artist, playback.providerLabel)
-            .filter(String::isNotBlank).distinct().joinToString(" · ")
+        // The source app is already visible through the compact media-source icon; keep the
+        // artist line focused on the artist text instead of appending a provider label.
+        val artist = if (playback != null) playback.artist
         else if (landscape && last != null) words.recent.format(last.label) else words.emptyArtist
         val duration = playback?.durationMs ?: 0
         val position = playback?.let { interpolatedPosition(it, nowElapsedMs) } ?: 0L

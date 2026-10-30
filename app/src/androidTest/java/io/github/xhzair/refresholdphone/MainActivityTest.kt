@@ -96,7 +96,7 @@ class MainActivityTest {
                 )
             }
             onView(withText("夜曲")).check(matches(isDisplayed()))
-            onView(withText("周杰伦 · 网易云音乐")).check(matches(isDisplayed()))
+            onView(withText("周杰伦")).check(matches(isDisplayed()))
             onView(withId(R.id.playPause)).check(
                 matches(allOf(isDisplayed(), isEnabled(), withContentDescription(R.string.pause))),
             )

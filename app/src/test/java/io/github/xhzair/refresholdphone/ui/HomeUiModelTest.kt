@@ -29,7 +29,7 @@ class HomeUiModelTest {
         val playback = PlaybackSnapshot("p", "来源", "歌曲", "作者", Long.MAX_VALUE, Long.MAX_VALUE / 2, true, PlaybackControls(true, false, true))
         val ui = HomeUiModelMapper.map(HomeState(playback = playback, notificationAccessGranted = true), words, null, false)
         assertEquals("歌曲", ui.title)
-        assertEquals("作者 · 来源", ui.artist)
+        assertEquals("作者", ui.artist)
         assertEquals(500, ui.progress)
         assertEquals(1000, ui.progressMax)
         assertTrue(ui.showProgress)
