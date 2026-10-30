@@ -18,6 +18,16 @@ class PlaybackSnapshotTest {
         assertTrue(policy.available())
     }
 
+    @Test fun `exclusive policy pauses other playing media sources only`() {
+        val media = setOf("com.netease.cloudmusic", "com.tencent.qqmusic", "app.podcast.cosmos")
+        assertTrue(shouldPauseOtherSession("com.tencent.qqmusic", "com.netease.cloudmusic", true, media))
+        assertFalse(shouldPauseOtherSession("com.tencent.qqmusic", "com.netease.cloudmusic", false, media))
+        assertFalse(shouldPauseOtherSession("com.tencent.qqmusic", "com.netease.cloudmusic", true, emptySet()))
+        assertFalse(shouldPauseOtherSession("com.tencent.qqmusic", "com.tencent.qqmusic", true, media))
+        assertFalse(shouldPauseOtherSession(null, "com.netease.cloudmusic", true, media))
+        assertFalse(shouldPauseOtherSession("com.tencent.qqmusic", "com.spotify.music", true, media))
+    }
+
     private fun map(title: String? = null, artist: String? = null,
                     label: String = " Provider ", duration: Long = 0,
                     position: Long = 0, playing: Boolean = false, actions: Long = 0) =

@@ -95,6 +95,7 @@ class MainActivity : AppCompatActivity() {
         }
         binding.root.keepScreenOn = preferences.keepScreenOn
         applySystemBars()
+        (application as MediaShellApplication).ensureSingleSourceGuardStarted()
         viewModel.start()
     }
 

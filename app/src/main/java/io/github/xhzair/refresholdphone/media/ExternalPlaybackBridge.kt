@@ -54,10 +54,26 @@ internal class PlaybackAvailabilityPolicy(
     fun available(): Boolean = settingsEnabled()
 }
 
+/**
+ * Single-active-source policy for the media apps this desktop exposes. When a newly started
+ * session belongs to one of those apps, every other playing session in the same set is paused
+ * through its transport controls (never force-stopped).
+ */
+internal fun shouldPauseOtherSession(
+    selectedPackage: String?,
+    otherPackage: String,
+    otherPlaying: Boolean,
+    mediaPackages: Set<String>,
+): Boolean = otherPlaying && selectedPackage != null &&
+    otherPackage != selectedPackage && otherPackage in mediaPackages
+
 /** All bridge state is confined to main. Off-main calls enqueue work, in call order.
  * Client callbacks run without locks and may reenter start/stop; revision checks fence emissions.
  */
-class AndroidExternalPlaybackBridge(context: Context) : ExternalPlaybackBridge {
+class AndroidExternalPlaybackBridge(
+    context: Context,
+    private val additionalMediaPackages: () -> Set<String> = { emptySet() },
+) : ExternalPlaybackBridge {
     private val applicationContext = context.applicationContext
     private val manager = applicationContext.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
     private val component = ComponentName(applicationContext, MediaNotificationListener::class.java)
@@ -167,15 +183,48 @@ class AndroidExternalPlaybackBridge(context: Context) : ExternalPlaybackBridge {
         if (!availability.available()) { unavailable(false); return }
         val nextSnapshot = try {
             val playing = candidates.values().filter { it.playbackState?.state == PlaybackState.STATE_PLAYING }
-            playing.filter { it.sessionToken !in previousPlaying }.forEach { markActive(it) }
+            val newlyPlaying = playing.filter { it.sessionToken !in previousPlaying }
+            newlyPlaying.forEach { markActive(it) }
             previousPlaying = playing.mapTo(mutableSetOf()) { it.sessionToken }
-            controller = candidates.selected()
-            controller?.let(::toSnapshot)
+            // Prefer the session that just started playing so a new source becomes the UI source
+            // immediately; otherwise keep the normal selection policy.
+            val selected = if (newlyPlaying.isNotEmpty()) {
+                newlyPlaying.maxByOrNull { recentActivity[it.packageName] ?: 0L } ?: newlyPlaying.first()
+            } else {
+                candidates.selected()
+            }
+            controller = selected
+            if (selected?.playbackState?.state == PlaybackState.STATE_PLAYING) {
+                val mediaPackages = supportedPlaybackPackages + additionalMediaPackages()
+                playing.forEach { other ->
+                    if (other.sessionToken != selected.sessionToken &&
+                        shouldPauseOtherSession(selected.packageName, other.packageName,
+                            other.playbackState?.state == PlaybackState.STATE_PLAYING, mediaPackages)) {
+                        pauseOther(other)
+                    }
+                }
+            }
+            selected?.let(::toSnapshot)
         } catch (_: SecurityException) { unavailable(false); return }
         catch (_: IllegalArgumentException) { controller = null; null }
         catch (_: IllegalStateException) { controller = null; null }
         snapshot = nextSnapshot
         emit(true, nextSnapshot)
+    }
+
+    /** Pauses a competing session through its own transport controls; never kills its process. */
+    private fun pauseOther(source: MediaController) {
+        val actions = source.playbackState?.actions ?: return
+        if (actions and (PlaybackActions.PAUSE or PlaybackActions.PLAY_PAUSE) == 0L) return
+        try {
+            source.transportControls.pause()
+        } catch (_: SecurityException) {
+            // Access can be revoked between session discovery and the control call.
+        } catch (_: IllegalArgumentException) {
+            // The session disappeared concurrently.
+        } catch (_: IllegalStateException) {
+            // The controller is no longer usable.
+        }
     }
 
     private fun markActive(source: MediaController) {
