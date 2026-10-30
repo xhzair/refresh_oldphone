@@ -30,6 +30,7 @@
 | --- | --- |
 | `orientation` | 方向偏好：`AUTO` / `PORTRAIT` / `LANDSCAPE` |
 | `keep_screen_on` | 是否保持屏幕常亮 |
+| `hide_status_bar` | 是否隐藏系统状态栏 |
 | `selected_apps` | 用户主动添加的附加媒体 App 包名集合 |
 | `last_launched_media_package` | 最近一次成功启动的媒体 App 包名（用于横屏空状态提示） |
 
