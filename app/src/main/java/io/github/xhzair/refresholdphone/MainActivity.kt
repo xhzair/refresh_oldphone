@@ -29,6 +29,7 @@ import io.github.xhzair.refresholdphone.databinding.ActivityMainBinding
 import io.github.xhzair.refresholdphone.prefs.OrientationMode
 import io.github.xhzair.refresholdphone.prefs.UserPreferences
 import io.github.xhzair.refresholdphone.system.SystemActions
+import io.github.xhzair.refresholdphone.ui.AppListActivity
 import io.github.xhzair.refresholdphone.ui.HomeState
 import io.github.xhzair.refresholdphone.ui.HomeUiModelMapper
 import io.github.xhzair.refresholdphone.ui.HomeViewModel
@@ -67,12 +68,14 @@ class MainActivity : AppCompatActivity() {
         actions = SystemActions(this)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        // The settings entry is visually 48 dp so it stays quiet; keep a 56 dp touch target.
+        // The settings/entry buttons are visually compact; keep 56 dp touch targets.
         expandTouchTarget(binding.settings, R.dimen.touch_target)
+        expandTouchTarget(binding.appDrawer, R.dimen.touch_target)
         viewModel = ViewModelProvider(this, (application as MediaShellApplication).homeViewModelFactory())[HomeViewModel::class.java]
         words = HomeWords(getString(R.string.empty_title), getString(R.string.empty_artist),
             getString(R.string.recent_app), getString(R.string.system_status), getString(R.string.charging))
         binding.mediaSource.setOnClickListener { showMediaSourceDialog() }
+        binding.appDrawer.setOnClickListener { startActivity(Intent(this, AppListActivity::class.java)) }
         binding.previous.setOnClickListener { viewModel.skipPrevious() }
         binding.playPause.setOnClickListener { viewModel.playPause() }
         binding.next.setOnClickListener { viewModel.skipNext() }

@@ -13,6 +13,8 @@
 <string name="media_source_entry_named">切换媒体应用：%1$s</string>
 <string name="media_source_dialog_title">选择媒体应用</string>
 <string name="media_source_current">当前</string>
+<string name="all_apps">所有应用</string>
+<string name="apps_count">%1$d 个应用</string>
 <string name="media_source_empty_title">没有可用的媒体应用</string>
 <string name="media_source_empty_message">未检测到已安装的媒体应用。请先安装网易云音乐、QQ 音乐或小宇宙；安装后会自动出现在这里，也可以在设置中添加其他媒体应用。</string>
 <string name="settings">设置</string>

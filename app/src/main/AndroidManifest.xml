@@ -24,6 +24,9 @@
             android:name=".ui.SettingsActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.AppListActivity"
+            android:exported="false" />
+        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>

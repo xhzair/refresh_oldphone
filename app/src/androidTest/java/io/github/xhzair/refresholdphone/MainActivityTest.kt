@@ -141,6 +141,15 @@ class MainActivityTest {
     }
 
     @Test
+    fun appDrawerOpensAllAppsList() {
+        ActivityScenario.launch(MainActivity::class.java).use {
+            onView(withId(R.id.appDrawer)).perform(click())
+            onView(withText(R.string.all_apps)).check(matches(isDisplayed()))
+            onView(withId(R.id.appList)).check(matches(isDisplayed()))
+        }
+    }
+
+    @Test
     fun notificationPromptOpensOnlyOnClick() {
         ActivityScenario.launch(MainActivity::class.java).use {
             onView(withText(R.string.permission_prompt)).check(matches(isDisplayed()))
