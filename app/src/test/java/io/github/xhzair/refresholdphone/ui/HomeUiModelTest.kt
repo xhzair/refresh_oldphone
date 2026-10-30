@@ -44,6 +44,37 @@ class HomeUiModelTest {
         assertFalse(HomeUiModelMapper.map(HomeState(playback = over), words, null, false).playing)
     }
 
+    @Test fun playingProgressAdvancesWithElapsedTime() {
+        val playback = PlaybackSnapshot(
+            "p", "来源", "歌曲", "作者",
+            durationMs = 120_000, positionMs = 10_000, playing = true,
+            controls = PlaybackControls(true, false, true),
+            positionUpdatedAtMs = 5_000L, playbackSpeed = 1f,
+        )
+        val state = HomeState(playback = playback, notificationAccessGranted = true)
+        // 10 s reported + 20 s elapsed = 30 s of 120 s.
+        assertEquals(250, HomeUiModelMapper.map(state, words, null, false, nowElapsedMs = 25_000L).progress)
+    }
+
+    @Test fun pausedProgressDoesNotDriftAndUnknownSampleTimeFallsBack() {
+        val paused = PlaybackSnapshot(
+            "p", "来源", "歌曲", "作者", 120_000, 10_000, false, PlaybackControls(),
+            positionUpdatedAtMs = 5_000L,
+        )
+        assertEquals(83, HomeUiModelMapper.map(HomeState(playback = paused), words, null, false, 25_000L).progress)
+        val unknownSampleTime = paused.copy(playing = true, positionUpdatedAtMs = 0L)
+        assertEquals(83, HomeUiModelMapper.map(HomeState(playback = unknownSampleTime), words, null, false, 25_000L).progress)
+    }
+
+    @Test fun interpolatedProgressClampsToDuration() {
+        val playback = PlaybackSnapshot(
+            "p", "来源", "歌曲", "作者", 60_000, 50_000, true, PlaybackControls(),
+            positionUpdatedAtMs = 1_000L,
+        )
+        val ui = HomeUiModelMapper.map(HomeState(playback = playback), words, null, false, 999_999L)
+        assertEquals(1000, ui.progress)
+    }
+
     @Test fun statusIsExplicit() {
         val ui = HomeUiModelMapper.map(HomeState(systemStatus = SystemStatus(42, true, "Wi-Fi")), words, null, false)
         assertEquals("Wi-Fi · 电量 42% · 充电中", ui.status)

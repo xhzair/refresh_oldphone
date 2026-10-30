@@ -11,6 +11,7 @@ import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.graphics.scale
 
@@ -228,7 +229,10 @@ class AndroidExternalPlaybackBridge(context: Context) : ExternalPlaybackBridge {
             metadata?.getText(MediaMetadata.METADATA_KEY_TITLE)?.toString(),
             metadata?.getText(MediaMetadata.METADATA_KEY_ARTIST)?.toString(),
             metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L,
-            state?.position ?: 0L, state?.state == PlaybackState.STATE_PLAYING, state?.actions ?: 0L)
+            state?.position ?: 0L, state?.state == PlaybackState.STATE_PLAYING, state?.actions ?: 0L,
+            positionUpdatedAtMs = state?.lastPositionUpdateTime
+                ?.takeIf { it > 0L } ?: SystemClock.elapsedRealtime(),
+            playbackSpeed = state?.playbackSpeed ?: 1f)
         return result.copy(artwork = copyArtwork(metadata))
     }
 

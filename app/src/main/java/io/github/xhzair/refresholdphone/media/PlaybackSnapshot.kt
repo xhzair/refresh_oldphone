@@ -18,6 +18,10 @@ data class PlaybackSnapshot(
     val playing: Boolean,
     val controls: PlaybackControls,
     val artwork: Bitmap? = null,
+    /** `SystemClock.elapsedRealtime()` when [positionMs] was sampled by the player. */
+    val positionUpdatedAtMs: Long = 0L,
+    /** Playback speed reported by the session; used only for local progress interpolation. */
+    val playbackSpeed: Float = 1f,
 )
 
 internal object PlaybackActions {
@@ -39,18 +43,23 @@ internal fun playPauseCommand(playing: Boolean, actions: Long): PlaybackCommand?
 
 internal object PlaybackSnapshotMapper {
     fun map(packageName: String, providerLabel: String, title: String?, artist: String?,
-            durationMs: Long, positionMs: Long, playing: Boolean, actions: Long): PlaybackSnapshot {
+            durationMs: Long, positionMs: Long, playing: Boolean, actions: Long,
+            positionUpdatedAtMs: Long = 0L, playbackSpeed: Float = 1f): PlaybackSnapshot {
         val label = providerLabel.trim().ifEmpty { packageName }
         val duration = durationMs.coerceAtLeast(0)
         val position = positionMs.coerceAtLeast(0).let {
             if (duration > 0) it.coerceAtMost(duration) else it
         }
+        val speed = playbackSpeed.takeIf { it.isFinite() && it > 0f } ?: 1f
         return PlaybackSnapshot(packageName, label, title?.trim().orEmpty().ifEmpty { label },
             artist?.trim().orEmpty(), duration, position, playing,
             PlaybackControls(
                 playPauseCommand(playing, actions) != null,
                 actions and PlaybackActions.PREVIOUS != 0L,
                 actions and PlaybackActions.NEXT != 0L,
-            ))
+            ),
+            positionUpdatedAtMs = positionUpdatedAtMs.coerceAtLeast(0),
+            playbackSpeed = speed,
+        )
     }
 }

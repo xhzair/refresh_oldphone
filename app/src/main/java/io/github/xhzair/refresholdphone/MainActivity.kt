@@ -7,6 +7,9 @@ import android.content.res.Configuration
 import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.view.TouchDelegate
 import android.view.View
 import android.widget.ImageView
@@ -43,6 +46,20 @@ class MainActivity : AppCompatActivity() {
     private var apps: List<MediaApp> = emptyList()
     private var mediaSourceRendered = false
     private var renderedMediaSourcePackage: String? = null
+    private var lastState: HomeState? = null
+    private var progressTickerRunning = false
+    private val progressHandler = Handler(Looper.getMainLooper())
+    private val progressTick = object : Runnable {
+        override fun run() {
+            val state = lastState ?: return
+            render(state)
+            if (state.playback?.playing == true) {
+                progressHandler.postDelayed(this, PROGRESS_TICK_MS)
+            } else {
+                progressTickerRunning = false
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,6 +99,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
+        progressHandler.removeCallbacks(progressTick)
+        progressTickerRunning = false
         viewModel.stop()
         super.onStop()
     }
@@ -120,9 +139,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun render(state: HomeState) {
+        lastState = state
         apps = state.apps
         val ui = HomeUiModelMapper.map(state, words, preferences.lastLaunchedMediaPackage,
-            resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
+            resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE,
+            SystemClock.elapsedRealtime())
         binding.trackTitle.text = ui.title
         binding.trackArtist.text = ui.artist
         binding.systemStatus.text = ui.status
@@ -145,6 +166,23 @@ class MainActivity : AppCompatActivity() {
         binding.playPause.contentDescription = getString(if (ui.playing) R.string.pause else R.string.play)
         binding.permissionPrompt.visibility = if (ui.showPermission) View.VISIBLE else View.INVISIBLE
         renderMediaSource(MediaSourceSelection.currentSource(apps, preferences.lastLaunchedMediaPackage))
+        updateProgressTicker(ui.playing)
+    }
+
+    /**
+     * External players only publish a new position when their state changes. While the session is
+     * playing and the desktop is visible, re-render once a second so the thin progress line moves
+     * smoothly from the last reported position plus elapsed time. No MediaSession polling happens;
+     * the ticker stops on pause, on stop and while the desktop is not visible.
+     */
+    private fun updateProgressTicker(playing: Boolean) {
+        if (playing && !progressTickerRunning) {
+            progressTickerRunning = true
+            progressHandler.postDelayed(progressTick, PROGRESS_TICK_MS)
+        } else if (!playing && progressTickerRunning) {
+            progressTickerRunning = false
+            progressHandler.removeCallbacks(progressTick)
+        }
     }
 
     /**
@@ -223,5 +261,9 @@ class MainActivity : AppCompatActivity() {
         null
     } catch (_: SecurityException) {
         null
+    }
+
+    private companion object {
+        const val PROGRESS_TICK_MS = 1_000L
     }
 }
