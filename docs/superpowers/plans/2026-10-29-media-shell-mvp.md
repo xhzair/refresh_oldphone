@@ -1,5 +1,7 @@
 # Old Android Media Shell MVP Implementation Plan
 
+> **Status (2026-10-30):** Tasks 1–10 are implemented on `feature/media-shell-mvp`. Unit tests (8 classes / 51 cases) and instrumented tests (7 cases) pass; MIX 2S acceptance is recorded in `docs/device-testing-mix2s.md`. The checkboxes below are kept as the original planning text — see `git log` for step-by-step history. Not covered on device: audio-playing rotation, lock/unlock, and reboot persistence (reboot requires explicit user approval).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a no-root Android 6+ home-screen replacement that launches the user's existing NetEase Cloud Music, QQ Music, and Xiaoyuzhou apps, shows their current media session when Android exposes it, and switches between a portrait playback-first layout and a landscape ambient-clock layout.

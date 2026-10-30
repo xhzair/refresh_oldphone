@@ -1,0 +1,7 @@
+<resources>
+<dimen name="screen_padding">24dp</dimen>
+<dimen name="touch_target">56dp</dimen>
+<dimen name="settings_section_gap">32dp</dimen>
+<dimen name="settings_item_gap">12dp</dimen>
+<dimen name="settings_hint_gap">4dp</dimen>
+</resources>
