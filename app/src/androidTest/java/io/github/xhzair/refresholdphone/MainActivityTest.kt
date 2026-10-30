@@ -106,6 +106,41 @@ class MainActivityTest {
     }
 
     @Test
+    fun artworkFillsDesktopBackgroundWhilePlaying() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                assertEquals(
+                    android.view.View.INVISIBLE,
+                    activity.findViewById<android.widget.ImageView>(R.id.artworkBackground).visibility,
+                )
+            }
+            val artwork = android.graphics.Bitmap.createBitmap(64, 64, android.graphics.Bitmap.Config.ARGB_8888)
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                playback.emitPlayback(
+                    PlaybackSnapshot(
+                        packageName = "com.netease.cloudmusic",
+                        providerLabel = "网易云音乐",
+                        title = "夜曲",
+                        artist = "周杰伦",
+                        durationMs = 240_000,
+                        positionMs = 60_000,
+                        playing = true,
+                        controls = PlaybackControls(canPlayPause = true, canSkipPrevious = false, canSkipNext = true),
+                        artwork = artwork,
+                    ),
+                )
+            }
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            scenario.onActivity { activity ->
+                val background = activity.findViewById<android.widget.ImageView>(R.id.artworkBackground)
+                assertEquals(android.view.View.VISIBLE, background.visibility)
+                val drawable = background.drawable as android.graphics.drawable.BitmapDrawable
+                assertEquals(artwork, drawable.bitmap)
+            }
+        }
+    }
+
+    @Test
     fun notificationPromptOpensOnlyOnClick() {
         ActivityScenario.launch(MainActivity::class.java).use {
             onView(withText(R.string.permission_prompt)).check(matches(isDisplayed()))

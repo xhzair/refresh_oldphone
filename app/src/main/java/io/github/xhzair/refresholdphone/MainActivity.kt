@@ -88,6 +88,10 @@ class MainActivity : AppCompatActivity() {
         binding.artwork.setImageBitmap(state.playback?.artwork)
         binding.artwork.visibility = if (ui.showArtwork) View.VISIBLE else View.INVISIBLE
         binding.artworkFallback.visibility = if (ui.showArtwork) View.INVISIBLE else View.VISIBLE
+        // Reuse the already downscaled artwork bitmap (max 512 px) as a dimmed full-bleed
+        // background; no blur, no extra decode, and the 30% alpha keeps text contrast.
+        binding.artworkBackground.setImageBitmap(state.playback?.artwork)
+        binding.artworkBackground.visibility = if (state.playback?.artwork != null) View.VISIBLE else View.INVISIBLE
         binding.position.max = ui.progressMax
         binding.position.progress = ui.progress
         binding.position.visibility = if (ui.showProgress) View.VISIBLE else View.INVISIBLE
