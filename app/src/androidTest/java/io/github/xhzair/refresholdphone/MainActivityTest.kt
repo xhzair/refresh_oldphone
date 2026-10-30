@@ -1,14 +1,11 @@
 package io.github.xhzair.refresholdphone
 
-import androidx.recyclerview.widget.RecyclerView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.doesNotExist
 import androidx.test.espresso.assertion.ViewAssertions.matches
-import androidx.test.espresso.matcher.ViewMatchers
-import androidx.test.espresso.matcher.ViewMatchers.hasSibling
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.isEnabled
 import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
@@ -20,7 +17,6 @@ import io.github.xhzair.refresholdphone.apps.MediaApp
 import io.github.xhzair.refresholdphone.media.PlaybackControls
 import io.github.xhzair.refresholdphone.media.PlaybackSnapshot
 import io.github.xhzair.refresholdphone.ui.HomeViewModel
-import io.github.xhzair.refresholdphone.ui.MediaAppAdapter
 import org.hamcrest.Matchers.allOf
 import org.hamcrest.Matchers.not
 import org.junit.After
@@ -43,6 +39,7 @@ class MainActivityTest {
                 MediaApp("com.netease.cloudmusic", "网易云音乐", installed = true, official = true),
                 MediaApp("com.tencent.qqmusic", "QQ音乐", installed = false, official = true),
                 MediaApp("app.podcast.cosmos", "小宇宙", installed = false, official = true),
+                MediaApp("org.videolan.vlc", "VLC", installed = true, official = false),
             ),
         )
         application.homeViewModelOverride = {
@@ -61,22 +58,19 @@ class MainActivityTest {
     }
 
     @Test
-    fun homeRendersOfficialProvidersInStableOrder() {
-        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
-            scenario.onActivity { activity ->
-                val list = activity.findViewById<RecyclerView>(R.id.appList)
-                val adapter = list.adapter as MediaAppAdapter
-                assertEquals(3, adapter.itemCount)
-                assertEquals(
-                    listOf("com.netease.cloudmusic", "com.tencent.qqmusic", "app.podcast.cosmos"),
-                    adapter.currentList.map { it.packageName },
-                )
-            }
+    fun compactEntryOpensDialogWithInstalledSourcesOnly() {
+        ActivityScenario.launch(MainActivity::class.java).use {
+            onView(withId(R.id.mediaSource)).check(matches(isDisplayed()))
+            onView(withId(R.id.mediaSource)).perform(click())
+
+            onView(withText(R.string.media_source_dialog_title)).check(matches(isDisplayed()))
             onView(withText("网易云音乐")).check(matches(isDisplayed()))
-            onView(allOf(withText("未安装"), hasSibling(withText("QQ音乐"))))
-                .check(matches(isDisplayed()))
-            onView(allOf(withText("已安装"), hasSibling(withText("网易云音乐"))))
-                .check(matches(isDisplayed()))
+            onView(withText("VLC")).check(matches(isDisplayed()))
+            onView(withText("QQ音乐")).check(doesNotExist())
+            onView(withText("小宇宙")).check(doesNotExist())
+
+            onView(withText(R.string.settings_cancel)).perform(click())
+            onView(withText(R.string.media_source_dialog_title)).check(doesNotExist())
         }
     }
 

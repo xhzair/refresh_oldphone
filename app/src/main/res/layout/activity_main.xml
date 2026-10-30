@@ -44,16 +44,17 @@
     android:drawablePadding="8dp"
     app:layout_constraintEnd_toEndOf="parent"
     app:layout_constraintBottom_toBottomOf="parent"/>
-<androidx.recyclerview.widget.RecyclerView
-    android:id="@+id/appList"
-    android:layout_width="0dp"
-    android:layout_height="104dp"
-    android:clipToPadding="false"
-    android:orientation="horizontal"
+<ImageButton
+    android:id="@+id/mediaSource"
+    android:layout_width="@dimen/touch_target"
+    android:layout_height="@dimen/touch_target"
+    android:background="@drawable/control_background"
+    android:contentDescription="@string/media_source_entry"
+    android:padding="10dp"
+    android:scaleType="fitCenter"
+    android:src="@drawable/ic_artwork"
     app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintBottom_toTopOf="@id/settings"
-    android:layout_marginBottom="16dp"/>
+    app:layout_constraintBottom_toBottomOf="parent"/>
 <FrameLayout
     android:id="@+id/artworkFrame"
     android:layout_width="0dp"
@@ -139,7 +140,7 @@
     android:layout_width="0dp"
     android:text="@string/permission_prompt"
     android:textColor="@color/accent"
-    app:layout_constraintBottom_toTopOf="@id/appList"
+    app:layout_constraintBottom_toTopOf="@id/mediaSource"
     android:layout_marginBottom="16dp"
     app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintEnd_toEndOf="parent"/>

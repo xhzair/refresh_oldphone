@@ -1,9 +1,7 @@
 package io.github.xhzair.refresholdphone.ui
 
-import io.github.xhzair.refresholdphone.apps.MediaApp
-
 data class HomeWords(val emptyTitle: String, val emptyArtist: String, val recent: String,
-    val status: String, val charging: String, val installed: String, val missing: String)
+    val status: String, val charging: String)
 
 data class HomeUiModel(val title: String, val artist: String, val status: String,
     val showArtwork: Boolean, val showProgress: Boolean, val progress: Int,
@@ -29,6 +27,4 @@ object HomeUiModelMapper {
             playback?.controls?.canPlayPause == true, playback?.controls?.canSkipPrevious == true,
             playback?.controls?.canSkipNext == true, playback?.playing == true, !state.notificationAccessGranted)
     }
-
-    fun appStatus(app: MediaApp, words: HomeWords): String = if (app.installed) words.installed else words.missing
 }
