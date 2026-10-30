@@ -23,12 +23,6 @@ class UserPreferences(context: Context) {
             preferences.edit { putBoolean(KEY_KEEP_SCREEN_ON, value) }
         }
 
-    var ambientPhraseVisible: Boolean
-        get() = preferences.getBoolean(KEY_AMBIENT_PHRASE_VISIBLE, true)
-        set(value) {
-            preferences.edit { putBoolean(KEY_AMBIENT_PHRASE_VISIBLE, value) }
-        }
-
     var lastLaunchedMediaPackage: String?
         get() = preferences.getString(KEY_LAST_LAUNCHED_MEDIA_PACKAGE, null)
             ?.takeUnless(String::isBlank)
@@ -51,7 +45,6 @@ class UserPreferences(context: Context) {
         const val PREFERENCES_FILE = "media_shell"
         const val KEY_ORIENTATION = "orientation"
         const val KEY_KEEP_SCREEN_ON = "keep_screen_on"
-        const val KEY_AMBIENT_PHRASE_VISIBLE = "ambient_phrase_visible"
         const val KEY_LAST_LAUNCHED_MEDIA_PACKAGE = "last_launched_media_package"
         const val KEY_SELECTED_PACKAGES = "selected_apps"
     }

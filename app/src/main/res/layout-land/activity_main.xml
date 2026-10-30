@@ -10,16 +10,15 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    app:layout_constraintGuide_percent="0.56"/>
+    app:layout_constraintGuide_percent="0.46"/>
 <TextClock
     android:id="@+id/clockSmall" style="@style/HomeText"
     android:format12Hour="@string/home_time_format_12_hour"
     android:format24Hour="@string/home_time_format_24_hour"
     android:fontFeatureSettings="tnum"
-    android:textSize="72sp"
+    android:textSize="56sp"
     app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintTop_toTopOf="parent"
-    android:layout_marginTop="0dp"/>
+    app:layout_constraintTop_toTopOf="parent"/>
 <TextClock
     android:id="@+id/dateText" style="@style/HomeText"
     android:format12Hour="@string/home_date_format"
@@ -35,22 +34,6 @@
     app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintEnd_toStartOf="@id/divider"
     app:layout_constraintTop_toBottomOf="@id/dateText"/>
-<TextView
-    android:id="@+id/ambientPhrase" style="@style/HomeText"
-    android:text="@string/ambient_phrase"
-    android:textColor="@color/muted"
-    android:layout_marginTop="8dp"
-    android:visibility="visible"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintTop_toBottomOf="@id/systemStatus"/>
-<Button
-    android:id="@+id/settings" style="@style/TextAction"
-    android:layout_width="wrap_content"
-    android:text="@string/settings"
-    android:drawableStart="@drawable/ic_settings"
-    android:drawablePadding="8dp"
-    app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintBottom_toBottomOf="parent"/>
 <ImageButton
     android:id="@+id/mediaSource"
     android:layout_width="@dimen/touch_target"
@@ -64,11 +47,15 @@
     app:layout_constraintBottom_toBottomOf="parent"/>
 <FrameLayout
     android:id="@+id/artworkFrame"
-    android:layout_width="64dp"
-    android:layout_height="64dp"
+    android:layout_width="0dp"
+    android:layout_height="0dp"
+    android:layout_marginTop="4dp"
     app:layout_constraintStart_toStartOf="@id/divider"
     app:layout_constraintEnd_toEndOf="parent"
-    app:layout_constraintTop_toTopOf="parent">
+    app:layout_constraintTop_toTopOf="parent"
+    app:layout_constraintDimensionRatio="1:1"
+    app:layout_constraintWidth_max="160dp"
+    app:layout_constraintHeight_max="160dp">
 <ImageView
     android:id="@+id/artwork"
     android:layout_width="match_parent"
@@ -80,7 +67,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:src="@drawable/ic_artwork"
-    android:padding="16dp"
+    android:padding="48dp"
     android:background="@drawable/control_background"
     android:importantForAccessibility="no"/>
 </FrameLayout>
@@ -91,7 +78,7 @@
     android:maxLines="1"
     android:ellipsize="end"
     android:gravity="center"
-    android:layout_marginTop="8dp"
+    android:layout_marginTop="12dp"
     app:layout_constraintTop_toBottomOf="@id/artworkFrame"
     app:layout_constraintStart_toStartOf="@id/divider"
     app:layout_constraintEnd_toEndOf="parent"/>
@@ -109,17 +96,26 @@
     android:id="@+id/position" style="?android:attr/progressBarStyleHorizontal"
     android:layout_width="0dp"
     android:layout_height="8dp"
+    android:layout_marginTop="8dp"
     android:contentDescription="@string/progress_description"
     app:layout_constraintTop_toBottomOf="@id/trackArtist"
+    app:layout_constraintStart_toStartOf="@id/divider"
+    app:layout_constraintEnd_toEndOf="parent"/>
+<Button
+    android:id="@+id/permissionPrompt" style="@style/TextAction"
+    android:layout_width="0dp"
+    android:text="@string/permission_prompt"
+    android:textColor="@color/accent"
+    app:layout_constraintBottom_toTopOf="@id/playPause"
+    android:layout_marginBottom="12dp"
     app:layout_constraintStart_toStartOf="@id/divider"
     app:layout_constraintEnd_toEndOf="parent"/>
 <ImageButton
     android:id="@+id/playPause" style="@style/Control"
     android:src="@drawable/ic_play"
     android:contentDescription="@string/play"
-    app:layout_constraintTop_toBottomOf="@id/position"
-    android:layout_marginTop="8dp"
-    app:layout_constraintStart_toStartOf="@id/divider"
+    app:layout_constraintBottom_toBottomOf="parent"
+    app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintEnd_toEndOf="parent"/>
 <ImageButton
     android:id="@+id/previous" style="@style/Control"
@@ -127,20 +123,20 @@
     android:contentDescription="@string/previous"
     android:layout_marginEnd="16dp"
     app:layout_constraintEnd_toStartOf="@id/playPause"
-    app:layout_constraintTop_toTopOf="@id/playPause"/>
+    app:layout_constraintBottom_toBottomOf="@id/playPause"/>
 <ImageButton
     android:id="@+id/next" style="@style/Control"
     android:src="@drawable/ic_next"
     android:contentDescription="@string/next"
     android:layout_marginStart="16dp"
     app:layout_constraintStart_toEndOf="@id/playPause"
-    app:layout_constraintTop_toTopOf="@id/playPause"/>
+    app:layout_constraintBottom_toBottomOf="@id/playPause"/>
 <Button
-    android:id="@+id/permissionPrompt" style="@style/TextAction"
-    android:layout_width="0dp"
-    android:text="@string/permission_prompt"
-    android:textColor="@color/accent"
-    app:layout_constraintTop_toTopOf="@id/playPause"
-    app:layout_constraintStart_toStartOf="@id/divider"
-    app:layout_constraintEnd_toEndOf="parent"/>
+    android:id="@+id/settings" style="@style/TextAction"
+    android:layout_width="wrap_content"
+    android:text="@string/settings"
+    android:drawableStart="@drawable/ic_settings"
+    android:drawablePadding="8dp"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintBottom_toBottomOf="parent"/>
 </androidx.constraintlayout.widget.ConstraintLayout>

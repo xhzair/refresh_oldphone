@@ -70,8 +70,6 @@ class MainActivity : AppCompatActivity() {
             OrientationMode.LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         }
         binding.root.keepScreenOn = preferences.keepScreenOn
-        binding.ambientPhrase.visibility = if (preferences.ambientPhraseVisible &&
-            resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) View.VISIBLE else View.GONE
         viewModel.start()
     }
 

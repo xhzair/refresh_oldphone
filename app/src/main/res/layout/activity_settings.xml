@@ -81,15 +81,6 @@
             style="@style/SettingsHint"
             android:text="@string/settings_keep_screen_on_warning" />
 
-        <androidx.appcompat.widget.SwitchCompat
-            android:id="@+id/ambientPhraseSwitch"
-            style="@style/SettingsSwitch"
-            android:text="@string/settings_ambient_phrase" />
-
-        <TextView
-            style="@style/SettingsHint"
-            android:text="@string/settings_ambient_phrase_hint" />
-
         <TextView
             style="@style/SettingsSectionHeader"
             android:text="@string/settings_section_apps" />

@@ -49,10 +49,6 @@ class SettingsActivity : AppCompatActivity() {
             if (applyingPreferences) return@setOnCheckedChangeListener
             preferences.keepScreenOn = checked
         }
-        binding.ambientPhraseSwitch.setOnCheckedChangeListener { _, checked ->
-            if (applyingPreferences) return@setOnCheckedChangeListener
-            preferences.ambientPhraseVisible = checked
-        }
         binding.selectApps.setOnClickListener { showAppSelection() }
         binding.openNotificationAccess.setOnClickListener {
             actions.openNotificationAccessSettings()
@@ -89,7 +85,6 @@ class SettingsActivity : AppCompatActivity() {
             },
         )
         binding.keepScreenOnSwitch.isChecked = preferences.keepScreenOn
-        binding.ambientPhraseSwitch.isChecked = preferences.ambientPhraseVisible
         applyingPreferences = false
         refreshNotificationAccess()
         refreshAppSummary()

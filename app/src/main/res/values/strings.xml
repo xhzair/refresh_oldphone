@@ -27,7 +27,6 @@
 <string name="cancel">暂不开启</string>
 <string name="app_missing">尚未安装 %1$s，请通过官方渠道获取</string>
 <string name="launch_failed">%1$s 当前版本不可启动</string>
-<string name="ambient_phrase">留一点时间，慢慢听。</string>
 <string name="artwork_description">当前播放封面</string>
 <string name="progress_description">播放进度</string>
 <string name="settings_title">设置</string>
@@ -40,8 +39,6 @@
 <string name="settings_section_appearance">外观与屏幕</string>
 <string name="settings_keep_screen_on">保持屏幕常亮</string>
 <string name="settings_keep_screen_on_warning">适合固定在支架上展示。屏幕长时间常亮会增加耗电，并可能让屏幕留下烧屏痕迹。</string>
-<string name="settings_ambient_phrase">在横屏显示安静文案</string>
-<string name="settings_ambient_phrase_hint">横屏时钟下方显示一句固定文案，不联网、不轮播，随时可以关闭。</string>
 <string name="settings_section_apps">附加媒体应用</string>
 <string name="settings_apps_hint">从已安装且可启动的应用中选择，显示在首页应用列表末尾。官方媒体应用无需添加。</string>
 <string name="settings_apps_none">未添加附加应用。官方媒体应用始终显示在首页。</string>
