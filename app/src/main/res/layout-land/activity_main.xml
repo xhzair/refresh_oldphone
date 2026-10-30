@@ -1,4 +1,4 @@
-﻿<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
@@ -22,7 +22,7 @@
     android:orientation="vertical"
     app:layout_constraintGuide_percent="0.46"/>
 <TextClock
-    android:id="@+id/clockSmall" style="@style/HomeText"
+    android:id="@+id/clockSmall" style="@style/HomeClock"
     android:format12Hour="@string/home_time_format_12_hour"
     android:format24Hour="@string/home_time_format_24_hour"
     android:fontFeatureSettings="tnum"
@@ -33,12 +33,14 @@
     android:id="@+id/dateText" style="@style/HomeText"
     android:format12Hour="@string/home_date_format"
     android:format24Hour="@string/home_date_format"
+    android:letterSpacing="0.01"
     android:textColor="@color/muted"
     app:layout_constraintStart_toStartOf="parent"
     app:layout_constraintTop_toBottomOf="@id/clockSmall"/>
 <TextView
     android:id="@+id/systemStatus" style="@style/HomeText"
     android:layout_width="0dp"
+    android:letterSpacing="0.01"
     android:textColor="@color/muted"
     android:layout_marginTop="8dp"
     app:layout_constraintStart_toStartOf="parent"
@@ -48,9 +50,9 @@
     android:id="@+id/mediaSource"
     android:layout_width="@dimen/touch_target"
     android:layout_height="@dimen/touch_target"
-    android:background="@drawable/control_background"
+    android:background="@drawable/walkman_control"
     android:contentDescription="@string/media_source_entry"
-    android:padding="10dp"
+    android:padding="12dp"
     android:scaleType="fitCenter"
     android:src="@drawable/ic_artwork"
     app:layout_constraintStart_toStartOf="parent"
@@ -77,8 +79,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:src="@drawable/ic_artwork"
-    android:padding="48dp"
-    android:background="@drawable/control_background"
+    android:padding="44dp"
+    android:background="@drawable/cover_background"
     android:importantForAccessibility="no"/>
 </FrameLayout>
 <TextView
@@ -105,8 +107,9 @@
 <ProgressBar
     android:id="@+id/position" style="?android:attr/progressBarStyleHorizontal"
     android:layout_width="0dp"
-    android:layout_height="8dp"
-    android:layout_marginTop="8dp"
+    android:layout_height="4dp"
+    android:progressDrawable="@drawable/walkman_progress"
+    android:layout_marginTop="10dp"
     android:contentDescription="@string/progress_description"
     app:layout_constraintTop_toBottomOf="@id/trackArtist"
     app:layout_constraintStart_toStartOf="@id/divider"

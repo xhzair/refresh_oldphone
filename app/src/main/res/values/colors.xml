@@ -6,5 +6,5 @@
 <color name="accent">#D7A84B</color>
 <color name="muted">#A7ABB0</color>
 <color name="surface">#14181C</color>
-<color name="pressed">#313941</color>
+<color name="control_outline">#3E444A</color>
 </resources>
