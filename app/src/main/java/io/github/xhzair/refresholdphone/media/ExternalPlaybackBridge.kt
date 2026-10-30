@@ -40,14 +40,17 @@ internal fun selectPlaybackSession(sessions: List<PlaybackSessionCandidate>): In
         ?: supported.firstOrNull() ?: sessions.indices.firstOrNull()
 }
 
-internal fun listenerConnectionAccess(connected: Boolean, settingsEnabled: Boolean): Boolean =
-    connected && settingsEnabled
-
+/**
+ * MediaSessionManager authorizes callers by the *enabled notification-listener component*,
+ * not by whether our listener service happens to be bound. Some OEM builds (observed on
+ * MIUI 12.5) leave the listener enabled but unbound after the app process is recreated;
+ * gating on the service connection would wrongly hide playback until the user toggled the
+ * permission. Availability therefore follows the settings permission only.
+ */
 internal class PlaybackAvailabilityPolicy(
-    private val listenerConnected: () -> Boolean,
     private val settingsEnabled: () -> Boolean,
 ) {
-    fun available(): Boolean = listenerConnectionAccess(listenerConnected(), settingsEnabled())
+    fun available(): Boolean = settingsEnabled()
 }
 
 /** All bridge state is confined to main. Off-main calls enqueue work, in call order.
@@ -58,7 +61,7 @@ class AndroidExternalPlaybackBridge(context: Context) : ExternalPlaybackBridge {
     private val manager = applicationContext.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
     private val component = ComponentName(applicationContext, MediaNotificationListener::class.java)
     private val handler = Handler(Looper.getMainLooper())
-    private val availability = PlaybackAvailabilityPolicy({ mediaListenerConnections.connected }, ::accessEnabled)
+    private val availability = PlaybackAvailabilityPolicy(::accessEnabled)
     private var started = false
     private var revision = 0L
     private var lifecycle = 0L

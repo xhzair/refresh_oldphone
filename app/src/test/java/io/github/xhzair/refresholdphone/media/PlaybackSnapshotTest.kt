@@ -4,31 +4,18 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PlaybackSnapshotTest {
-    @Test fun `availability remains denied across disconnected restart until reconnect`() {
-        val registry = ListenerConnectionRegistry()
+    @Test fun `availability follows notification access regardless of service binding`() {
         var settingsEnabled = true
-        val policy = PlaybackAvailabilityPolicy({ registry.connected }, { settingsEnabled })
-        registry.update(true)
-        val observed = mutableListOf(policy.available())
-        registry.update(false)
-        observed += policy.available()
-        // A restarted bridge consults the same process connection state.
-        observed += PlaybackAvailabilityPolicy({ registry.connected }, { settingsEnabled }).available()
-        registry.update(true)
-        observed += policy.available()
+        val policy = PlaybackAvailabilityPolicy { settingsEnabled }
+        assertTrue(policy.available())
         settingsEnabled = false
-        observed += policy.available()
-        assertEquals(listOf(true, false, false, true, false), observed)
+        assertFalse(policy.available())
     }
 
-    @Test fun `disconnected listener denies access even while settings permission remains enabled`() {
-        assertFalse(listenerConnectionAccess(connected = false, settingsEnabled = true))
-        assertFalse(listenerConnectionAccess(connected = false, settingsEnabled = false))
-    }
-
-    @Test fun `connected listener still requires settings permission`() {
-        assertTrue(listenerConnectionAccess(connected = true, settingsEnabled = true))
-        assertFalse(listenerConnectionAccess(connected = true, settingsEnabled = false))
+    @Test fun `enabled listener without a bound service still grants access`() {
+        // MediaSessionManager checks the enabled listener component; a bound service is not required.
+        val policy = PlaybackAvailabilityPolicy { true }
+        assertTrue(policy.available())
     }
 
     private fun map(title: String? = null, artist: String? = null,
