@@ -1,7 +1,7 @@
 # MIX 2S 真机验收记录（0.1 MVP）
 
-- 验收日期：2026-10-30（北京时间）
-- 代码状态：`feature/media-shell-mvp`，版本 0.1.0（versionCode 1），提交 `75d9c69` 之后的调试构建
+- 验收日期：2026-10-30（北京时间，首轮 00:30–01:05；第二轮补测 11:50–12:00）
+- 代码状态：`feature/media-shell-mvp` 已合入 `main`（merge commit `8f1d308`），版本 0.1.0（versionCode 1）；合入后 main 上 `clean testDebugUnitTest lintDebug assembleDebug` 通过
 - APK：`app/build/outputs/apk/debug/app-debug.apk`（约 4.8 MB，debug 签名）
 - 验收设备：Xiaomi MIX 2S（`polaris`），Android 10 / API 29，MIUI 12.5，1080 × 2160、440 dpi
 - 验收人：自动化 adb 驱动 + 人工核对截图
@@ -37,9 +37,9 @@
 | 12 | 暂时接管默认桌面 | 通过 | `cmd package set-home-activity` 后按 Home 回到本应用，`isDefault=true`；[06-default-home.png](device-evidence/06-default-home.png) |
 | 13 | 通过“恢复系统桌面”恢复 MIUI 桌面 | 通过 | 设置页按钮打开系统默认主屏幕应用选择器（`DefaultAppActivity`），选择“系统桌面”后按 Home 回到 `com.miui.home/.launcher.Launcher`，`isDefault=true`；[07-system-home-chooser.png](device-evidence/07-system-home-chooser.png)、[08-restored-miui-home.jpg](device-evidence/08-restored-miui-home.jpg) |
 | 14 | 清除本地配置 | 通过 | 确认框文案正确；确认后 `shared_prefs/media_shell.xml` 变为 `<map />`，网易云安装信息未变化，应用可继续启动；[09-clear-config-confirm.png](device-evidence/09-clear-config-confirm.png) |
-| 15 | 旋转不打断播放 | 未覆盖 | 本次未实际播放音频（避免在用户设备上出声）；应用自身不持有播放器，旋转只重建首页 UI，外部播放由官方 App 持有 |
-| 16 | 锁屏/解锁、进程重建 | 未覆盖 | 需人工长时间观察；Activity 重建由 `HomeViewModel` 生命周期测试覆盖 |
-| 17 | 重启后持久化/无崩溃循环 | 未测试 | 需用户明确同意后重启设备，本次未执行 |
+| 15 | 旋转不打断播放 | 通过（第二轮补测） | 实际播放中竖屏→横屏→竖屏，`PlaybackState` 始终为 `state=3`（PLAYING），`AudioTrack` 保持 `state:started`，曲目从 “Let Me Go” 推进到 “Breathe (In the Air)”；[11-playing-rotation-landscape.png](device-evidence/11-playing-rotation-landscape.png)、[12-playing-rotation-portrait.png](device-evidence/12-playing-rotation-portrait.png) |
+| 16 | 锁屏/解锁、进程重建 | 通过（分项，第二轮补测） | 播放中电源键锁屏 6 秒后仍 `state=3` 且音轨 started；解锁后首页恢复并显示播放卡片 [13-post-unlock-playing.png](device-evidence/13-post-unlock-playing.png)；旋转重建与 `force-stop` 后按 Home 冷启动（新 pid）均正常渲染首页、无崩溃；MIUI 忽略 `always_finish_activities`，该方式无法触发销毁（详见第 7 节） |
+| 17 | 重启后持久化/无崩溃循环 | 通过（受限说明，第二轮补测） | 默认桌面为媒体桌面时重启，`sys.boot_completed=1` 用时约 29 秒；重启后 `resolve-activity` 显示 `isDefault=true` 且默认组件仍为 `io.github.xhzair.refresholdphone/.MainActivity`；crash buffer 无本应用记录。设备有安全锁屏，首次解锁前不启动 HOME 属 Android 预期行为，用户解锁后按 Home 正常进入媒体桌面（详见第 7 节） |
 | 18 | 暗光可读性 | 通过（人工目视） | 深夜环境截图对比度正常；正文 ≥18sp、触控目标 ≥56dp |
 
 ### 系统快捷入口在 MIX 2S 上的解析结果
@@ -88,4 +88,56 @@
 
 ## 6. 结论
 
-里程碑 1 的核心路径在 MIX 2S 上通过：普通 App 打开、双方向布局、官方 App 启动、通知授权后的 MediaSession 展示、撤销后的降级、系统入口、HOME 接管与恢复、清除配置均符合设计规格。未覆盖项（实际音频播放中旋转、锁屏/重启持久化）需要在用户明确同意后补测。
+里程碑 1 的核心路径在 MIX 2S 上通过：普通 App 打开、双方向布局、官方 App 启动、通知授权后的 MediaSession 展示、撤销后的降级、系统入口、HOME 接管与恢复、清除配置均符合设计规格。
+
+第二轮补测（第 7 节）进一步覆盖了实际播放中的旋转连续性、锁屏/解锁、Activity 重建、进程冷启动和默认桌面重启持久化，全部通过。剩余未覆盖项只包括设计规格中声明的后续兼容矩阵：Android 6/7 32 位、1–2 GB RAM、非 MIUI 设备与平板尺寸设备。
+
+## 7. 第二轮补测详情（2026-10-30 11:50–12:00）
+
+补测前提：应用已安装（0.1.0 debug），通知使用权已临时授予，网易云音乐 9.6.15 正在实际播放音频；测试结束后恢复通知授权与默认桌面。
+
+### 7.1 播放中旋转
+
+1. 将“媒体桌面”临时设为默认桌面，网易云音乐开始播放（`dumpsys media_session`：`state=3`，`actions=822`）。
+2. 锁定系统旋转后依次切竖屏 → 横屏 → 竖屏，每次等待 3 秒：
+   - 三个时点 `PlaybackState` 均为 `state=3`（PLAYING）；
+   - `dumpsys audio` 中网易云 `AudioTrack` 持续 `state:started`；
+   - 期间曲目从 “Let Me Go” 自动推进到 “Breathe (In the Air)”，说明播放未被旋转中断或重启；
+   - 首页在横屏/竖屏都正确显示封面、曲名、作者、来源与暂停按钮（[11-playing-rotation-landscape.png](device-evidence/11-playing-rotation-landscape.png)、[12-playing-rotation-portrait.png](device-evidence/12-playing-rotation-portrait.png)）。
+3. 测试后恢复 `accelerometer_rotation=1`。
+
+结论：旋转只重建本应用 UI，不触碰外部官方 App 的播放会话，满足“旋转不打断播放”目标。
+
+### 7.2 锁屏/解锁
+
+1. 播放中按电源键熄屏并锁定 6 秒：`dumpsys media_session` 仍为 `state=3`，`AudioTrack state:started`。
+2. 唤醒后设备要求密码/指纹解锁（该 MIX 2S 设有安全锁屏），由用户手动解锁。
+3. 解锁后首页恢复正常，播放卡片仍显示当前曲目与控制按钮（[13-post-unlock-playing.png](device-evidence/13-post-unlock-playing.png)）。
+
+结论：锁屏不会暂停外部播放；解锁后媒体桌面可正常恢复展示。
+
+### 7.3 Activity 重建与进程冷启动
+
+- **旋转触发重建**：7.1 中每次旋转都会重建 `MainActivity`，播放卡片与状态由 ViewModel/外部会话恢复，无闪烁丢状态。
+- **force-stop 后冷启动**：作为默认桌面时执行 `am force-stop io.github.xhzair.refresholdphone`，系统随后重建 HOME 进程；按 Home 回到 `MainActivity`（新进程 pid），首页正常渲染，`logcat -b crash` 无本应用记录。验证了“下一次启动仍进入安全首页、不形成崩溃循环”。
+- **`always_finish_activities` 在 MIUI 上无效**：打开该开发者选项后从设置页返回，`MainActivity` 记录未被销毁，说明 MIUI 忽略了该全局开关；这是平台行为，不能作为应用缺陷。Activity 重建覆盖改由旋转与 force-stop 场景证明。
+
+### 7.4 重启持久化
+
+1. 将“媒体桌面”设为默认桌面（`isDefault=true`），执行 `adb reboot`。
+2. 重启完成：`sys.boot_completed=1` 用时约 29 秒。
+3. 重启后检查：
+   - `resolve-activity ... HOME` 显示 `isDefault=true`，默认组件仍为 `io.github.xhzair.refresholdphone/.MainActivity`，说明默认桌面选择在 MIUI 上跨重启保留；
+   - `logcat -b crash` 无本应用崩溃（仅有系统 `init` 的 SIGABRT 噪声，与本应用无关）；
+   - 因设备设有安全锁屏，首次解锁前 Android 不会启动 HOME，属预期行为；用户解锁后按 Home 正常进入媒体桌面。
+4. 测试后通过 `set-home-activity` 恢复 MIUI 桌面并核对 `isDefault=true`。
+
+### 7.5 补测中发现的 MIUI 行为（非应用缺陷）
+
+- **通知监听服务重绑**：在应用进程未运行或设备重启后，即使“通知使用权”已列入系统授权列表，MIUI 也不会立即绑定 `MediaNotificationListener`，首页会停留在“开启播放状态显示”状态；在应用运行时重新切换一次授权（或重启应用进程）即可连接。正常用户路径（应用运行时在系统设置中授权）不受影响。
+- **安全锁屏**：设备启用密码/指纹后，adb 无法代替解锁；重启与解锁验证需要用户手动参与。本次已由用户完成一次解锁。
+- **`always_finish_activities`**：MIUI 忽略该开发者选项（见 7.3）。
+
+### 7.6 补测后设备状态
+
+默认桌面已恢复 `com.miui.home/.launcher.Launcher`（`isDefault=true`）；通知使用权恢复为原列表（不含本应用）；动画缩放=1；`MIUIOP(10021)=default`；本应用保留安装且未设为默认桌面；媒体播放已暂停。
