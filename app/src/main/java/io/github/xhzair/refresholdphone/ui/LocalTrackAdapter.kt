@@ -3,6 +3,7 @@ package io.github.xhzair.refresholdphone.ui
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.ViewCompat
 import androidx.recyclerview.widget.RecyclerView
 import io.github.xhzair.refresholdphone.R
 import io.github.xhzair.refresholdphone.databinding.ItemLocalTrackBinding
@@ -10,6 +11,7 @@ import io.github.xhzair.refresholdphone.local.LocalArtwork
 import io.github.xhzair.refresholdphone.local.LocalNowPlaying
 import io.github.xhzair.refresholdphone.local.LocalTrack
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 
 /** Lists the device's local tracks and highlights the one the playback service reports. */
 class LocalTrackAdapter(
@@ -19,6 +21,9 @@ class LocalTrackAdapter(
     class Holder(val binding: ItemLocalTrackBinding) : RecyclerView.ViewHolder(binding.root)
 
     private val artworkExecutor = Executors.newFixedThreadPool(2)
+
+    @Volatile
+    private var closed = false
 
     private var tracks: List<LocalTrack> = emptyList()
     private var nowPlayingId: Long? = null
@@ -38,6 +43,12 @@ class LocalTrackAdapter(
         if (currentId != null && currentId != previousId) notifyTrackChanged(currentId)
     }
 
+    /** Stops the artwork pool; late decodes must not touch the rows after this. */
+    fun shutdown() {
+        closed = true
+        artworkExecutor.shutdownNow()
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder =
         Holder(ItemLocalTrackBinding.inflate(LayoutInflater.from(parent.context), parent, false))
 
@@ -49,6 +60,11 @@ class LocalTrackAdapter(
             root.tag = track.id
             trackTitle.text = track.title
             trackSubtitle.text = subtitle(track)
+            root.contentDescription = listOf(track.title, track.artist)
+                .map(String::trim)
+                .filter(String::isNotEmpty)
+                .joinToString(" ")
+            ViewCompat.setScreenReaderFocusable(root, true)
             val isCurrent = track.id == nowPlayingId
             trackStatus.visibility = if (isCurrent) View.VISIBLE else View.GONE
             trackStatus.text = if (isCurrent) {
@@ -87,24 +103,31 @@ class LocalTrackAdapter(
 
     /**
      * Artwork decoding is slow, so it runs on an adapter-owned pool and is posted back only when
-     * the row still shows the same track. The application context keeps a late decode from
-     * retaining an Activity.
+     * the row still shows the same track and the adapter has not been shut down. The application
+     * context keeps a late decode from retaining an Activity.
      */
     private fun loadArtwork(holder: Holder, track: LocalTrack) {
+        if (closed) return
         val binding = holder.binding
         val appContext = binding.root.context.applicationContext
-        artworkExecutor.execute {
-            val bitmap = try {
-                LocalArtwork.load(appContext, track)
-            } catch (_: Exception) {
-                null
-            }
-            if (bitmap == null) return@execute
-            binding.root.post {
-                if (binding.root.tag == track.id) {
-                    binding.artwork.setImageBitmap(bitmap)
+        try {
+            artworkExecutor.execute {
+                if (closed) return@execute
+                val bitmap = try {
+                    LocalArtwork.load(appContext, track)
+                } catch (_: Exception) {
+                    null
+                }
+                if (bitmap == null || closed) return@execute
+                binding.root.post {
+                    if (closed) return@post
+                    if (binding.root.tag == track.id) {
+                        binding.artwork.setImageBitmap(bitmap)
+                    }
                 }
             }
+        } catch (_: RejectedExecutionException) {
+            // Shut down between the flag check and submission; nothing to draw.
         }
     }
 }
