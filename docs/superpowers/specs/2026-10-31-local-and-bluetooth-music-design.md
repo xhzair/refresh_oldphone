@@ -165,10 +165,8 @@ data class MediaSourceEntry(
 
 ### 6.1 检测
 
-- `BluetoothA2dpOutput` 工具：取 `BluetoothAdapter`，通过 `BluetoothProfile.ServiceListener` 获取 A2DP profile 的 `connectedDevices`；取设备名。
-- 权限：
-  - API <= 30：`BLUETOOTH`（normal，运行时无需请求）；
-  - API >= 31：`BLUETOOTH_CONNECT` 运行时权限；拒绝时降级为「蓝牙音频」通用名称，仍可播放。
+- `BluetoothOutputSource`：通过 `AudioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)` 查找 `AudioDeviceInfo.TYPE_BLUETOOTH_A2DP` 输出，读取 `productName` 作为设备名。
+- 不需要 `BLUETOOTH` / `BLUETOOTH_CONNECT` 权限；音频路由和耳机/车机按键全部由系统 MediaSession/AVRCP 处理。
 - 未连接/蓝牙关闭：源行 `available=false`，副标题「未连接」。
 - 打开系统蓝牙设置：`Settings.ACTION_BLUETOOTH_SETTINGS`。
 
@@ -187,9 +185,6 @@ Manifest 新增：
 <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
     android:maxSdkVersion="32" />
 <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-<uses-permission android:name="android.permission.BLUETOOTH"
-    android:maxSdkVersion="30" />
-<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -199,9 +194,8 @@ Manifest 新增：
 - `LocalMusicActivity`：`android:exported="false"`。
 - 运行时请求：
   - 音频权限：进入本地音乐页时；
-  - 通知权限（API 33+）：进入本地音乐页或首次播放时请求，拒绝不阻塞播放；
-  - `BLUETOOTH_CONNECT`（API 31+）：只在读取蓝牙设备名时请求，拒绝降级显示。
-- 不申请存储写入、不申请后台定位、不申请忽略电池优化。
+  - 通知权限（API 33+）：进入本地音乐页或首次播放时请求，拒绝不阻塞播放。
+- 不申请 `BLUETOOTH` / `BLUETOOTH_CONNECT`、存储写入、后台定位、忽略电池优化。
 
 ## 8. 错误与边界
 
@@ -285,6 +279,7 @@ Manifest 新增：
 - **平台 MediaPlayer 格式支持有限**：优先支持 mp3/flac/aac/ogg/wav；损坏文件走错误态。
 - **MIUI 后台限制**：前台服务 + 通知需在真机验证；不申请忽略电池优化，接受系统回收后不自动恢复。
 - **蓝牙实测依赖硬件**：没有蓝牙耳机时只能验证检测、未连接状态和设置跳转；AVRCP 行为标为「硬件实测项」。
+- **蓝牙检测**：使用 AudioManager 输出设备判断 A2DP，不需要蓝牙权限；不同厂商对 `productName` 的返回可能为空，此时显示「蓝牙音频」。
 - **通知权限（Android 13+）**：设备当前 API 29 不涉及；代码按版本处理，避免高版本崩溃。
 - **包可见性/MediaStore**：Android 11+ 查询 MediaStore 不需要 `queries`；存储权限仍按版本处理。
 - **单源互斥**：把本应用加入白名单后需验证不会误暂停自身；守卫始终保留最新播放的会话。
