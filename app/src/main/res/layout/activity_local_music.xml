@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical"
+    android:padding="@dimen/screen_padding">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/back"
+            style="@style/TextAction"
+            android:layout_width="wrap_content"
+            android:text="@string/settings_back" />
+
+        <TextView
+            android:id="@+id/title"
+            style="@style/HomeText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_weight="1"
+            android:text="@string/local_music_title"
+            android:textSize="28sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/count"
+        style="@style/HomeText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textColor="@color/muted" />
+
+    <TextView
+        android:id="@+id/bluetoothBanner"
+        style="@style/HomeText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textColor="@color/accent"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/permissionPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            style="@style/HomeText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/local_music_permission"
+            android:textSize="18sp" />
+
+        <Button
+            android:id="@+id/grantPermission"
+            style="@style/TextAction"
+            android:layout_width="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/local_music_grant" />
+
+        <Button
+            android:id="@+id/openSettings"
+            style="@style/TextAction"
+            android:layout_width="wrap_content"
+            android:text="@string/local_music_open_settings" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/errorText"
+        style="@style/HomeText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/local_music_play_failed"
+        android:textColor="@color/accent"
+        android:textSize="16sp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/empty"
+        style="@style/HomeText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="@string/local_music_empty"
+        android:textSize="18sp"
+        android:visibility="gone" />
+
+    <ProgressBar
+        android:id="@+id/progress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="24dp"
+        android:visibility="gone" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/trackList"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="12dp"
+        android:layout_weight="1"
+        android:clipToPadding="false" />
+</LinearLayout>
