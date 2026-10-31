@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.util.LruCache
 import android.util.Size
+import androidx.annotation.RequiresApi
 
 object LocalArtwork {
     private const val MAX_DIMENSION = 512
@@ -66,6 +67,7 @@ object LocalArtwork {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun thumbnail(context: Context, uri: Uri): Bitmap? =
         try {
             context.contentResolver.loadThumbnail(uri, Size(MAX_DIMENSION, MAX_DIMENSION), null)
