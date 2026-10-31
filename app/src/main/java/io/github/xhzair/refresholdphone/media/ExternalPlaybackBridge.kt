@@ -14,6 +14,7 @@ import android.os.Looper
 import android.os.SystemClock
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.graphics.scale
+import io.github.xhzair.refresholdphone.BuildConfig
 
 interface ExternalPlaybackBridge {
     fun start(onPlaybackChanged: (PlaybackSnapshot?) -> Unit, onAccessChanged: (Boolean) -> Unit)
@@ -24,7 +25,10 @@ interface ExternalPlaybackBridge {
 }
 
 internal val supportedPlaybackPackages = setOf(
-    "com.netease.cloudmusic", "com.tencent.qqmusic", "app.podcast.cosmos",
+    BuildConfig.APPLICATION_ID,
+    "com.netease.cloudmusic",
+    "com.tencent.qqmusic",
+    "app.podcast.cosmos",
 )
 
 internal data class PlaybackSessionCandidate(

@@ -18,6 +18,17 @@ class PlaybackSnapshotTest {
         assertTrue(policy.available())
     }
 
+    @Test fun `exclusive policy includes the local player package`() {
+        assertTrue(
+            shouldPauseOtherSession(
+                selectedPackage = "com.tencent.qqmusic",
+                otherPackage = io.github.xhzair.refresholdphone.BuildConfig.APPLICATION_ID,
+                otherPlaying = true,
+                mediaPackages = supportedPlaybackPackages,
+            ),
+        )
+    }
+
     @Test fun `exclusive policy pauses other playing media sources only`() {
         val media = setOf("com.netease.cloudmusic", "com.tencent.qqmusic", "app.podcast.cosmos")
         assertTrue(shouldPauseOtherSession("com.tencent.qqmusic", "com.netease.cloudmusic", true, media))
