@@ -52,12 +52,17 @@ internal fun clampSeekPosition(position: Long, duration: Int): Int {
 }
 
 /**
- * Decides whether a skip should keep playing. [playing] covers an active player, while
- * [autoPlayWhenPrepared] covers a track that is still preparing after the first skip. The value
- * must be captured before [LocalPlaybackService.startCurrentTrack] resets those flags.
+ * Decides whether a skip should keep playing. [playing] covers an active player,
+ * [autoPlayWhenPrepared] covers a track that is still preparing after the first skip, and
+ * [playIntent] preserves the user's last explicit play intent across a playback error, where
+ * releasePlayer() clears the other two flags. The value must be captured before
+ * [LocalPlaybackService.startCurrentTrack] resets those flags.
  */
-internal fun shouldPlayAfterSkip(playing: Boolean, autoPlayWhenPrepared: Boolean): Boolean =
-    playing || autoPlayWhenPrepared
+internal fun shouldPlayAfterSkip(
+    playing: Boolean,
+    autoPlayWhenPrepared: Boolean,
+    playIntent: Boolean,
+): Boolean = playing || autoPlayWhenPrepared || playIntent
 
 class LocalPlaybackService : Service() {
     private companion object {
@@ -100,6 +105,12 @@ class LocalPlaybackService : Service() {
      */
     private var playbackToken = 0L
     private var autoPlayWhenPrepared = false
+    /**
+     * The user's last explicit play/pause intent. Unlike [playing] and [autoPlayWhenPrepared], it
+     * survives a playback error so a subsequent skip can resume, while a user pause clears it so a
+     * skip stays paused. Temporary pauses (audio-focus loss) must not touch it.
+     */
+    private var playIntent = false
     private var playbackError = false
 
     private val audioAttributes: AudioAttributes by lazy {
@@ -120,7 +131,11 @@ class LocalPlaybackService : Service() {
             }
             AudioManager.AUDIOFOCUS_LOSS -> {
                 if (playing || pausedForFocus) {
-                    pausePlaybackInternal(abandonFocus = false, resumeOnFocusGain = false)
+                    pausePlaybackInternal(
+                        abandonFocus = false,
+                        resumeOnFocusGain = false,
+                        clearPlayIntent = false,
+                    )
                 }
                 // A permanent loss is not recoverable: release the request/listener bookkeeping.
                 abandonAudioFocus()
@@ -207,6 +222,7 @@ class LocalPlaybackService : Service() {
     override fun onDestroy() {
         destroyed = true
         loadGeneration += 1
+        playIntent = false
         mainHandler.removeCallbacksAndMessages(null)
         releasePlayer()
         abandonAudioFocus()
@@ -239,6 +255,9 @@ class LocalPlaybackService : Service() {
     private fun startQueue(ids: LongArray, startIndex: Int) {
         val generation = ++loadGeneration
         resetPlayback()
+        // Starting a queue is an explicit user play request; keep the intent even if the
+        // preparation later fails, so a skip from the error state can resume playback.
+        playIntent = true
         // Show a placeholder before touching MediaStore so the 5 second startForeground deadline
         // is met even when loading the queue is slow or fails.
         startForegroundPlaceholder()
@@ -398,6 +417,7 @@ class LocalPlaybackService : Service() {
 
     private fun startOrResumePlayback() {
         if (queue?.current == null) return
+        playIntent = true
         val mediaPlayer = player
         if (mediaPlayer == null) {
             startCurrentTrack(autoPlay = true)
@@ -441,14 +461,24 @@ class LocalPlaybackService : Service() {
     }
 
     private fun pausePlayback() {
-        pausePlaybackInternal(abandonFocus = true, resumeOnFocusGain = false)
+        pausePlaybackInternal(abandonFocus = true, resumeOnFocusGain = false, clearPlayIntent = true)
     }
 
     private fun pauseForFocus(resumeOnFocusGain: Boolean) {
-        pausePlaybackInternal(abandonFocus = false, resumeOnFocusGain = resumeOnFocusGain)
+        // A transient focus loss is not a user pause: the play intent must survive so a skip
+        // (or focus regain) still resumes.
+        pausePlaybackInternal(
+            abandonFocus = false,
+            resumeOnFocusGain = resumeOnFocusGain,
+            clearPlayIntent = false,
+        )
     }
 
-    private fun pausePlaybackInternal(abandonFocus: Boolean, resumeOnFocusGain: Boolean) {
+    private fun pausePlaybackInternal(
+        abandonFocus: Boolean,
+        resumeOnFocusGain: Boolean,
+        clearPlayIntent: Boolean,
+    ) {
         val mediaPlayer = player
         if (mediaPlayer != null && prepared) {
             try {
@@ -460,6 +490,7 @@ class LocalPlaybackService : Service() {
         ended = false
         // A pause while a prepare is still in flight must not start playback when it completes.
         autoPlayWhenPrepared = false
+        if (clearPlayIntent) playIntent = false
         pausedForFocus = resumeOnFocusGain
         if (abandonFocus) {
             // Never clear the focus flags without actually abandoning: pauseForFocus keeps focus
@@ -471,14 +502,14 @@ class LocalPlaybackService : Service() {
 
     private fun skipNext() {
         // Capture intent first: moving the queue and startCurrentTrack clear playing/flags.
-        val continuePlaying = shouldPlayAfterSkip(playing, autoPlayWhenPrepared)
+        val continuePlaying = shouldPlayAfterSkip(playing, autoPlayWhenPrepared, playIntent)
         if (queue?.moveNext() == null) return
         startCurrentTrack(autoPlay = continuePlaying)
     }
 
     private fun skipPrevious() {
         // Capture intent first: moving the queue and startCurrentTrack clear playing/flags.
-        val continuePlaying = shouldPlayAfterSkip(playing, autoPlayWhenPrepared)
+        val continuePlaying = shouldPlayAfterSkip(playing, autoPlayWhenPrepared, playIntent)
         if (queue?.movePrevious() == null) return
         startCurrentTrack(autoPlay = continuePlaying)
     }
@@ -517,6 +548,8 @@ class LocalPlaybackService : Service() {
 
     private fun handlePlaybackError() {
         playbackError = true
+        // releasePlayer() drops autoPlayWhenPrepared, but playIntent deliberately survives: a skip
+        // from the error state resumes only if the user's last explicit intent was to play.
         releasePlayer()
         playing = false
         ended = false
@@ -799,6 +832,7 @@ class LocalPlaybackService : Service() {
         prepared = false
         ended = false
         pausedForFocus = false
+        playIntent = false
         playbackError = false
         abandonAudioFocus()
         mediaSession.setMetadata(null)
