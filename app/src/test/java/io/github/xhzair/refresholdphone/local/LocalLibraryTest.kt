@@ -37,4 +37,26 @@ class LocalLibraryTest {
     fun `empty library stays empty`() {
         assertEquals(emptyList<LocalTrack>(), LocalLibrary.sanitize(emptyList()))
     }
+
+    @Test
+    fun `drops negative durations`() {
+        val cleaned = LocalLibrary.sanitize(
+            listOf(
+                track(1, "Keep"),
+                track(2, "Negative", duration = -1),
+            ),
+        )
+        assertEquals(listOf(1L), cleaned.map { it.id })
+    }
+
+    @Test
+    fun `breaks equal title and artist ties by id ascending`() {
+        val cleaned = LocalLibrary.sanitize(
+            listOf(
+                track(9, "Same", "Same"),
+                track(3, "Same", "Same"),
+            ),
+        )
+        assertEquals(listOf(3L, 9L), cleaned.map { it.id })
+    }
 }

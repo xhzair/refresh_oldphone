@@ -6,4 +6,5 @@ data class LocalTrack(
     val artist: String,
     val album: String,
     val durationMs: Long,
+    val albumId: Long = 0,
 )
