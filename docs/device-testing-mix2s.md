@@ -155,3 +155,15 @@
 - 单源互斥再次验证：小宇宙播放中启动 QQ 音乐，QQ 成为播放源，小宇宙停在 123 秒处自动暂停，桌面切换到 QQ 卡片。
 - 回滚：`adb shell cmd webviewupdate set-webview-implementation com.google.android.webview` 切回系统稳定版；`adb uninstall com.google.android.webview.beta` 卸载 Beta。系统 WebView 83 本体未被修改。
 - 注意：Beta WebView 属设备级实验性变更；若其他 WebView 应用出现异常，按上述回滚即可。
+
+## 9. 本地音乐与蓝牙音乐验收（2026-10-31）
+
+- 代码：`main`（Task 7 `581bec9` + 本轮文档）；APK 约 4.9 MB，versionName 0.1.0；设备仍以本应用为默认 HOME。
+- 测试音频：生成 30 秒 / 35 秒单声道 WAV，推入 `/sdcard/Music`；MIUI 未自动索引，最终通过 `MediaScannerService` 扫描后进入 MediaStore（`is_music=1`）。
+- 权限：MIUI 将本应用的 `READ_EXTERNAL_STORAGE` AppOps 置为 `ignore`（权限显示已授予但查询返回空）；在系统权限弹窗选择“始终允许”并执行 `adb shell appops set io.github.xhzair.refresholdphone READ_EXTERNAL_STORAGE allow` 后正常。
+- 本地音乐库显示 2 首测试曲目（`local-a`、`local-b`），点击播放成功；MediaSession 状态为 PLAYING，元数据为曲名/未知歌手/Music（WAV 无内嵌歌手信息），Notification 渠道 `local_music_playback` 出现上一首/暂停/下一首三个动作（[27-local-music-list.jpg](device-evidence/27-local-music-list.jpg)、[28-local-music-card.jpg](device-evidence/28-local-music-card.jpg)、[29-local-music-notification.jpg](device-evidence/29-local-music-notification.jpg)）。
+- 后台：切到 QQ 音乐/媒体桌面后本地播放继续，通知栏的 MediaStyle 控制可用；返回桌面按返回键恢复本地音乐页与播放卡片。
+- 单源互斥（双向）：本地播放中启动 QQ 音乐，QQ 进入 PLAYING，本地会话自动暂停在 12.3 秒；QQ 播放中打开本地音乐并点歌，本地进入 PLAYING，QQ 自动暂停在 47.8 秒。
+- 蓝牙：MIX 2S 当前没有已连接的 A2DP 音频设备；媒体源弹窗显示“蓝牙音乐（未连接）”，点击弹出“未连接蓝牙音频设备”并给出“打开蓝牙设置”入口（[30-bluetooth-source.jpg](device-evidence/30-bluetooth-source.jpg)）。设备名显示、蓝牙实际输出与耳机/车机 AVRCP 按键属于硬件实测项，本轮未覆盖。
+- 未覆盖：安全锁屏下的锁屏播放控制（设备设有密码/指纹，本轮只验证了切后台/离开桌面与通知控制）；建议后续由用户解锁后再补一次锁屏场景。
+- 已知小问题：从本地音乐页按 HOME 时 MIUI 未回到媒体桌面（按返回键正常回桌面）；不阻塞本次验收，记录为后续 UX 改进项。
