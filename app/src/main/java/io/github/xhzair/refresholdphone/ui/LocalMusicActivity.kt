@@ -64,7 +64,7 @@ class LocalMusicActivity : AppCompatActivity() {
         }
         binding.openSettings.setOnClickListener { openAppSettings() }
 
-        adapter = LocalTrackAdapter(::playTrack)
+        adapter = LocalTrackAdapter { track, _ -> playTrack(track) }
         binding.trackList.layoutManager = LinearLayoutManager(this)
         binding.trackList.itemAnimator = null
         binding.trackList.setHasFixedSize(true)
@@ -144,6 +144,7 @@ class LocalMusicActivity : AppCompatActivity() {
     private fun renderTracks(loaded: List<LocalTrack>) {
         tracks = loaded
         binding.count.text = getString(R.string.local_music_count, loaded.size)
+        binding.empty.text = getString(R.string.local_music_empty)
         binding.empty.visibility = if (loaded.isEmpty()) View.VISIBLE else View.GONE
         binding.progress.visibility = View.GONE
         binding.trackList.visibility = View.VISIBLE
@@ -158,6 +159,7 @@ class LocalMusicActivity : AppCompatActivity() {
     private fun showLoadFailure() {
         binding.progress.visibility = View.GONE
         if (tracks.isEmpty()) {
+            binding.empty.text = getString(R.string.local_music_load_failed)
             binding.empty.visibility = View.VISIBLE
             binding.trackList.visibility = View.GONE
         } else {
@@ -201,16 +203,21 @@ class LocalMusicActivity : AppCompatActivity() {
         binding.bluetoothBanner.visibility = View.VISIBLE
     }
 
-    private fun playTrack(track: LocalTrack, index: Int) {
+    private fun playTrack(track: LocalTrack) {
+        // The adapter position can be stale or unrelated; identify the row by track id instead.
+        val index = tracks.indexOfFirst { it.id == track.id }
+        if (index < 0) return
+        requestNotificationPermissionIfNeeded()
+        LocalPlaybackContract.playQueue(this, tracks.map { it.id }.toLongArray(), index)
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
         ) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
-        val ids = tracks.map { it.id }.toLongArray()
-        if (index !in ids.indices) return
-        LocalPlaybackContract.playQueue(this, ids, index)
     }
 
     private fun openAppSettings() {

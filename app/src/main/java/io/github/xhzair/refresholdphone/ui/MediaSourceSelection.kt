@@ -73,12 +73,4 @@ object MediaSourceSelection {
         entries.firstOrNull { it.id == lastSourceId }
             ?: entries.firstOrNull { it.available }
             ?: entries.firstOrNull()
-
-    // 兼容 Task 6 之前的 MainActivity；Task 6 完成后可删除。
-    fun availableSources(apps: List<MediaApp>): List<MediaApp> = apps.filter { it.installed }
-
-    fun currentSource(apps: List<MediaApp>, lastLaunchedPackage: String?): MediaApp? {
-        val installed = availableSources(apps)
-        return installed.firstOrNull { it.packageName == lastLaunchedPackage } ?: installed.firstOrNull()
-    }
 }

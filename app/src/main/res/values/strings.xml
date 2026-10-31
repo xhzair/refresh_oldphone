@@ -85,6 +85,7 @@
 <string name="local_music_title">本地音乐</string>
 <string name="local_music_count">全部歌曲 · %1$d 首</string>
 <string name="local_music_empty">手机里还没有音乐</string>
+<string name="local_music_load_failed">无法读取本地音乐库</string>
 <string name="local_music_permission">需要读取音频权限才能显示本地音乐</string>
 <string name="local_music_grant">授予权限</string>
 <string name="local_music_open_settings">去设置</string>

@@ -51,6 +51,14 @@ internal fun clampSeekPosition(position: Long, duration: Int): Int {
     return target.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 }
 
+/**
+ * Decides whether a skip should keep playing. [playing] covers an active player, while
+ * [autoPlayWhenPrepared] covers a track that is still preparing after the first skip. The value
+ * must be captured before [LocalPlaybackService.startCurrentTrack] resets those flags.
+ */
+internal fun shouldPlayAfterSkip(playing: Boolean, autoPlayWhenPrepared: Boolean): Boolean =
+    playing || autoPlayWhenPrepared
+
 class LocalPlaybackService : Service() {
     private companion object {
         const val NOTIFICATION_ID = 1
@@ -462,13 +470,17 @@ class LocalPlaybackService : Service() {
     }
 
     private fun skipNext() {
+        // Capture intent first: moving the queue and startCurrentTrack clear playing/flags.
+        val continuePlaying = shouldPlayAfterSkip(playing, autoPlayWhenPrepared)
         if (queue?.moveNext() == null) return
-        startCurrentTrack(autoPlay = playing)
+        startCurrentTrack(autoPlay = continuePlaying)
     }
 
     private fun skipPrevious() {
+        // Capture intent first: moving the queue and startCurrentTrack clear playing/flags.
+        val continuePlaying = shouldPlayAfterSkip(playing, autoPlayWhenPrepared)
         if (queue?.movePrevious() == null) return
-        startCurrentTrack(autoPlay = playing)
+        startCurrentTrack(autoPlay = continuePlaying)
     }
 
     private fun seekTo(position: Long) {
