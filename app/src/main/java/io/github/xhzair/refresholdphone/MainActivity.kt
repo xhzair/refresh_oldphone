@@ -26,6 +26,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModelProvider
 import io.github.xhzair.refresholdphone.apps.MediaApp
 import io.github.xhzair.refresholdphone.databinding.ActivityMainBinding
+import io.github.xhzair.refresholdphone.local.BluetoothOutputSource
 import io.github.xhzair.refresholdphone.prefs.OrientationMode
 import io.github.xhzair.refresholdphone.prefs.UserPreferences
 import io.github.xhzair.refresholdphone.system.SystemActions
@@ -34,6 +35,9 @@ import io.github.xhzair.refresholdphone.ui.HomeState
 import io.github.xhzair.refresholdphone.ui.HomeUiModelMapper
 import io.github.xhzair.refresholdphone.ui.HomeViewModel
 import io.github.xhzair.refresholdphone.ui.HomeWords
+import io.github.xhzair.refresholdphone.ui.LocalMusicActivity
+import io.github.xhzair.refresholdphone.ui.MediaSourceEntry
+import io.github.xhzair.refresholdphone.ui.MediaSourceKind
 import io.github.xhzair.refresholdphone.ui.MediaSourceSelection
 import io.github.xhzair.refresholdphone.ui.SettingsActivity
 
@@ -46,7 +50,9 @@ class MainActivity : AppCompatActivity() {
 
     private var apps: List<MediaApp> = emptyList()
     private var mediaSourceRendered = false
-    private var renderedMediaSourcePackage: String? = null
+    private var renderedMediaSourceId: String? = null
+    private var renderedSourceRequestId: String? = null
+    private var renderedSourceApps: List<MediaApp>? = null
     private var lastState: HomeState? = null
     private var progressTickerRunning = false
     private val progressHandler = Handler(Looper.getMainLooper())
@@ -169,7 +175,7 @@ class MainActivity : AppCompatActivity() {
         binding.playPause.setImageResource(if (ui.playing) R.drawable.ic_pause else R.drawable.ic_play)
         binding.playPause.contentDescription = getString(if (ui.playing) R.string.pause else R.string.play)
         binding.permissionPrompt.visibility = if (ui.showPermission) View.VISIBLE else View.INVISIBLE
-        renderMediaSource(MediaSourceSelection.currentSource(apps, preferences.lastLaunchedMediaPackage))
+        renderMediaSourceIfNeeded()
         updateProgressTicker(ui.playing)
     }
 
@@ -189,28 +195,62 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun sourceEntries(): List<MediaSourceEntry> = MediaSourceSelection.entries(
+        apps = apps,
+        bluetooth = BluetoothOutputSource.current(this),
+        localLabel = getString(R.string.local_music),
+        bluetoothLabel = getString(R.string.bluetooth_music),
+        disconnectedLabel = getString(R.string.bluetooth_not_connected),
+    )
+
+    private fun currentSourceId(): String? = MediaSourceSelection.initialSourceId(
+        preferences.lastMediaSourceId,
+        preferences.lastLaunchedMediaPackage,
+    )
+
+    /**
+     * Rebuilds the compact source entry only when the selection or the app list changed. This is
+     * called from every state render, including the 1 Hz progress tick, so it must not touch
+     * [BluetoothOutputSource] (an AudioManager IPC) unless something actually changed.
+     */
+    private fun renderMediaSourceIfNeeded() {
+        val desiredId = currentSourceId()
+        if (mediaSourceRendered && desiredId == renderedSourceRequestId && apps == renderedSourceApps) return
+        val entry = MediaSourceSelection.currentEntry(sourceEntries(), desiredId)
+        renderedSourceRequestId = desiredId
+        renderedSourceApps = apps
+        renderMediaSource(entry)
+    }
+
     /**
      * The compact entry shows one icon only: the currently selected media source (or a generic
-     * music glyph when nothing is installed). It never occupies the old horizontal card row.
+     * music glyph when nothing is available). It never occupies the old horizontal card row.
      */
-    private fun renderMediaSource(source: MediaApp?) {
-        val packageName = source?.packageName
-        if (mediaSourceRendered && packageName == renderedMediaSourcePackage) return
+    private fun renderMediaSource(entry: MediaSourceEntry?) {
+        if (mediaSourceRendered && entry?.id == renderedMediaSourceId) return
         mediaSourceRendered = true
-        renderedMediaSourcePackage = packageName
-        val icon = source?.let { appIcon(it.packageName) }
-            ?: ContextCompat.getDrawable(this, R.drawable.ic_artwork)
-        binding.mediaSource.setImageDrawable(icon)
-        binding.mediaSource.contentDescription = if (source != null) {
-            getString(R.string.media_source_entry_named, source.label)
+        renderedMediaSourceId = entry?.id
+        binding.mediaSource.setImageDrawable(
+            sourceIcon(entry) ?: ContextCompat.getDrawable(this, R.drawable.ic_artwork),
+        )
+        binding.mediaSource.contentDescription = if (entry != null) {
+            getString(R.string.media_source_entry_named, entry.label)
         } else {
             getString(R.string.media_source_entry)
         }
     }
 
+    private fun sourceIcon(entry: MediaSourceEntry?): Drawable? = when (entry?.kind) {
+        MediaSourceKind.LOCAL_MUSIC -> ContextCompat.getDrawable(this, R.drawable.ic_music_note)
+        MediaSourceKind.BLUETOOTH_MUSIC -> ContextCompat.getDrawable(this, R.drawable.ic_bluetooth)
+        MediaSourceKind.APP -> entry?.packageName?.let(::appIcon)
+        null -> null
+    }
+
     private fun showMediaSourceDialog() {
-        val sources = MediaSourceSelection.availableSources(apps)
-        if (sources.isEmpty()) {
+        // Building entries here is allowed to touch the Bluetooth IPC: it happens only on tap.
+        val entries = sourceEntries()
+        if (entries.isEmpty()) {
             AlertDialog.Builder(this)
                 .setTitle(R.string.media_source_empty_title)
                 .setMessage(R.string.media_source_empty_message)
@@ -218,21 +258,22 @@ class MainActivity : AppCompatActivity() {
                 .show()
             return
         }
-        val currentPackage = MediaSourceSelection.currentSource(apps, preferences.lastLaunchedMediaPackage)
-            ?.packageName
+        val current = MediaSourceSelection.currentEntry(entries, currentSourceId())
         val rows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         var dialog: AlertDialog? = null
-        sources.forEach { app ->
+        entries.forEach { entry ->
             val row = layoutInflater.inflate(R.layout.item_media_source, rows, false)
             row.findViewById<ImageView>(R.id.sourceIcon).setImageDrawable(
-                appIcon(app.packageName) ?: ContextCompat.getDrawable(this, R.drawable.ic_artwork),
+                sourceIcon(entry) ?: ContextCompat.getDrawable(this, R.drawable.ic_artwork),
             )
-            row.findViewById<TextView>(R.id.sourceLabel).text = app.label
+            row.findViewById<TextView>(R.id.sourceLabel).text = entry.sublabel?.let { sublabel ->
+                getString(R.string.media_source_label_with_sublabel, entry.label, sublabel)
+            } ?: entry.label
             row.findViewById<TextView>(R.id.sourceBadge).visibility =
-                if (app.packageName == currentPackage) View.VISIBLE else View.GONE
+                if (entry.id == current?.id) View.VISIBLE else View.GONE
             row.setOnClickListener {
                 dialog?.dismiss()
-                launchMediaApp(app)
+                selectSource(entry)
             }
             rows.addView(row)
         }
@@ -245,6 +286,47 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    private fun selectSource(entry: MediaSourceEntry) {
+        when (entry.kind) {
+            MediaSourceKind.APP -> {
+                val app = apps.firstOrNull { it.packageName == entry.packageName }
+                if (app == null) {
+                    Toast.makeText(this, getString(R.string.app_missing, entry.label), Toast.LENGTH_SHORT).show()
+                } else {
+                    launchMediaApp(app)
+                }
+            }
+
+            MediaSourceKind.LOCAL_MUSIC -> openLocalMusic(entry.id)
+
+            MediaSourceKind.BLUETOOTH_MUSIC -> {
+                if (entry.available) {
+                    openLocalMusic(entry.id)
+                } else {
+                    AlertDialog.Builder(this)
+                        .setMessage(R.string.bluetooth_not_connected_prompt)
+                        .setPositiveButton(R.string.open_bluetooth_settings) { _, _ ->
+                            actions.openBluetoothSettings()
+                        }
+                        .setNegativeButton(R.string.settings_cancel, null)
+                        .show()
+                }
+            }
+        }
+    }
+
+    private fun openLocalMusic(sourceId: String) {
+        rememberSource(sourceId)
+        startActivity(Intent(this, LocalMusicActivity::class.java))
+    }
+
+    private fun rememberSource(sourceId: String) {
+        preferences.lastMediaSourceId = sourceId
+        if (sourceId.startsWith("app:")) {
+            preferences.lastLaunchedMediaPackage = sourceId.removePrefix("app:")
+        }
+    }
+
     private fun launchMediaApp(app: MediaApp) {
         if (!app.installed) {
             Toast.makeText(this, getString(R.string.app_missing, app.label), Toast.LENGTH_SHORT).show()
@@ -252,7 +334,11 @@ class MainActivity : AppCompatActivity() {
         }
         if (actions.launchPackage(app.packageName)) {
             preferences.lastLaunchedMediaPackage = app.packageName
-            renderMediaSource(app)
+            rememberSource(MediaSourceSelection.appId(app.packageName))
+            val entry = MediaSourceSelection.currentEntry(sourceEntries(), currentSourceId())
+            renderedSourceRequestId = currentSourceId()
+            renderedSourceApps = apps
+            renderMediaSource(entry)
         } else {
             Toast.makeText(this, getString(R.string.launch_failed, app.label), Toast.LENGTH_SHORT).show()
             actions.openAppDetails(app.packageName)

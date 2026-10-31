@@ -18,6 +18,7 @@ import io.github.xhzair.refresholdphone.media.PlaybackControls
 import io.github.xhzair.refresholdphone.media.PlaybackSnapshot
 import io.github.xhzair.refresholdphone.ui.HomeViewModel
 import org.hamcrest.Matchers.allOf
+import org.hamcrest.Matchers.containsString
 import org.hamcrest.Matchers.not
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -71,6 +72,18 @@ class MainActivityTest {
 
             onView(withText(R.string.settings_cancel)).perform(click())
             onView(withText(R.string.media_source_dialog_title)).check(doesNotExist())
+        }
+    }
+
+    @Test
+    fun mediaSourceDialogShowsLocalAndBluetoothSources() {
+        val bluetoothLabel = InstrumentationRegistry.getInstrumentation().targetContext
+            .getString(R.string.bluetooth_music)
+        ActivityScenario.launch(MainActivity::class.java).use {
+            onView(withId(R.id.mediaSource)).perform(click())
+
+            onView(withText(R.string.local_music)).check(matches(isDisplayed()))
+            onView(withText(containsString(bluetoothLabel))).check(matches(isDisplayed()))
         }
     }
 

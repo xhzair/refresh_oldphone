@@ -92,4 +92,7 @@
 <string name="local_music_paused">已暂停</string>
 <string name="local_music_play_failed">无法播放这首歌曲</string>
 <string name="local_music_notification_channel">本地音乐播放</string>
+<string name="bluetooth_not_connected_prompt">未连接蓝牙音频设备，请先连接蓝牙耳机或音箱。</string>
+<string name="open_bluetooth_settings">打开蓝牙设置</string>
+<string name="media_source_label_with_sublabel">%1$s（%2$s）</string>
 </resources>

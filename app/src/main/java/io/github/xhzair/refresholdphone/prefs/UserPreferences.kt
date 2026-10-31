@@ -36,6 +36,12 @@ class UserPreferences(context: Context) {
             preferences.edit { putString(KEY_LAST_LAUNCHED_MEDIA_PACKAGE, value) }
         }
 
+    var lastMediaSourceId: String?
+        get() = preferences.getString(KEY_LAST_MEDIA_SOURCE, null)?.takeUnless(String::isBlank)
+        set(value) {
+            preferences.edit { putString(KEY_LAST_MEDIA_SOURCE, value) }
+        }
+
     fun selectedPackages(): Set<String> =
         preferences.getStringSet(KEY_SELECTED_PACKAGES, emptySet()).orEmpty().toSet()
 
@@ -53,6 +59,7 @@ class UserPreferences(context: Context) {
         const val KEY_KEEP_SCREEN_ON = "keep_screen_on"
         const val KEY_HIDE_STATUS_BAR = "hide_status_bar"
         const val KEY_LAST_LAUNCHED_MEDIA_PACKAGE = "last_launched_media_package"
+        const val KEY_LAST_MEDIA_SOURCE = "last_media_source"
         const val KEY_SELECTED_PACKAGES = "selected_apps"
     }
 }
