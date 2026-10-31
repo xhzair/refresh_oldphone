@@ -34,6 +34,10 @@
 
 ![所有应用](docs/device-evidence/25-all-apps.jpg)
 
+小宇宙播放时（WebView Beta 实现）：
+
+![小宇宙播放卡片](docs/device-evidence/26-xiaoyuzhou-card.jpg)
+
 更多设置页、播放卡片与恢复流程截图见 [真机验收记录](docs/device-testing-mix2s.md)。
 
 ## 不包含（0.1 范围）
@@ -116,7 +120,7 @@
 - 未授予通知使用权时，不显示跨应用播放卡片，其余功能不受影响。
 - 播放状态读取以系统“通知使用权”授权为准，不依赖监听服务是否已绑定；因此应用更新、进程重建或设备重启后，只要授权仍在，无需重新切换授权即可继续显示播放状态。
 - QQ 音乐 20.9.7.9（全功能模式，需登录）已验证会暴露 MediaSession，可正常显示与控制；其“基础模式”（不同意隐私协议）不注册 MediaSession，此时媒体桌面无法显示其播放卡片。
-- 小宇宙 3.4.1 在 MIX 2S 上首次启动进入 WebView 登录页后黑屏；该机 Android System WebView 仅为 83.0（2020 版），属于系统 WebView 过旧导致的兼容性问题，需更新 WebView 或使用兼容版本后才能完成真机播放测试。
+- 小宇宙 3.4.1 需要较新的 WebView：MIX 2S 原 Android System WebView 83 会导致登录页黑屏。本机已安装 Google 签名的 Android System WebView Beta 158（`com.google.android.webview.beta`）并切换实现，实测小宇宙可正常打开、播放，媒体桌面能显示其卡片、进度并参与单源互斥。恢复系统实现：`adb shell cmd webviewupdate set-webview-implementation com.google.android.webview`。
 
 ## 项目文档
 

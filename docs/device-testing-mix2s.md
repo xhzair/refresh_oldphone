@@ -143,3 +143,15 @@
 ### 7.6 补测后设备状态
 
 默认桌面已恢复 `com.miui.home/.launcher.Launcher`（`isDefault=true`）；通知使用权恢复为原列表（不含本应用）；动画缩放=1；`MIUIOP(10021)=default`；本应用保留安装且未设为默认桌面；媒体播放已暂停。
+
+## 8. WebView 更新与小宇宙验证（2026-10-31）
+
+- 设备原 Android System WebView 为 83.0.4103.101（2020 年版）；小宇宙 3.4.1 启动后进入 WebView 登录页并黑屏。
+- 直接更新系统 WebView 被 MIUI 拒绝：`adb install`、`pm install`、系统安装器均返回 `INSTALL_FAILED_USER_RESTRICTED`，即使打开“USB 安装”也无法替换系统 WebView。
+- 改用 Google 签名的 **Android System WebView Beta 158.0.8127.2**（`com.google.android.webview.beta`，minSdk 29，arm64/armv7，versionCode `812700201`）作为普通应用安装，并切换到该实现：
+  `adb shell cmd webviewupdate set-webview-implementation com.google.android.webview.beta`
+  `dumpsys webviewupdate` 显示 Current/Preferred 均为 beta 158。
+- 结果：小宇宙 3.4.1 正常进入首页与单集页，播放《积极表态 EP.6》；媒体桌面显示标题、作者、封面、进度与暂停控制（[26-xiaoyuzhou-card.jpg](device-evidence/26-xiaoyuzhou-card.jpg)）。
+- 单源互斥再次验证：小宇宙播放中启动 QQ 音乐，QQ 成为播放源，小宇宙停在 123 秒处自动暂停，桌面切换到 QQ 卡片。
+- 回滚：`adb shell cmd webviewupdate set-webview-implementation com.google.android.webview` 切回系统稳定版；`adb uninstall com.google.android.webview.beta` 卸载 Beta。系统 WebView 83 本体未被修改。
+- 注意：Beta WebView 属设备级实验性变更；若其他 WebView 应用出现异常，按上述回滚即可。
