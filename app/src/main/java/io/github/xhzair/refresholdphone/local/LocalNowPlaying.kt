@@ -6,6 +6,7 @@ import androidx.lifecycle.MutableLiveData
 data class LocalNowPlaying(
     val track: LocalTrack? = null,
     val playing: Boolean = false,
+    val error: Boolean = false,
 )
 
 object LocalNowPlayingState {
@@ -13,7 +14,7 @@ object LocalNowPlayingState {
 
     val nowPlaying: LiveData<LocalNowPlaying> get() = current
 
-    fun update(track: LocalTrack?, playing: Boolean) {
-        current.postValue(LocalNowPlaying(track, playing))
+    fun update(track: LocalTrack?, playing: Boolean, error: Boolean = false) {
+        current.postValue(LocalNowPlaying(track, playing, error))
     }
 }

@@ -38,6 +38,19 @@ internal fun resolveStartIndex(requestedId: Long?, tracks: List<LocalTrack>): In
     return tracks.indexOfFirst { it.id == requestedId }
 }
 
+/**
+ * Clamps a seek target to a valid MediaPlayer position. MediaPlayer.duration can be -1 while the
+ * source is unknown, and coerceIn(0, -1) would throw IllegalArgumentException.
+ */
+internal fun clampSeekPosition(position: Long, duration: Int): Int {
+    val target = if (duration > 0) {
+        position.coerceIn(0L, duration.toLong())
+    } else {
+        position.coerceAtLeast(0L)
+    }
+    return target.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+}
+
 class LocalPlaybackService : Service() {
     private companion object {
         const val NOTIFICATION_ID = 1
@@ -62,14 +75,24 @@ class LocalPlaybackService : Service() {
     private var player: MediaPlayer? = null
     private var queue: LocalPlaybackQueue? = null
     private var playing = false
+    private var prepared = false
     private var ended = false
     private var pausedForFocus = false
     private var hasAudioFocus = false
+    private var focusRequested = false
     private var audioFocusRequest: AudioFocusRequest? = null
     private var noiseReceiverRegistered = false
     private var foregroundStarted = false
     private var destroyed = false
     private var loadGeneration = 0
+
+    /**
+     * Identifies the current prepare attempt. MediaPlayer callbacks can be delivered after the
+     * player was reset/released, so every callback checks this token before touching playback.
+     */
+    private var playbackToken = 0L
+    private var autoPlayWhenPrepared = false
+    private var playbackError = false
 
     private val audioAttributes: AudioAttributes by lazy {
         AudioAttributes.Builder()
@@ -81,18 +104,25 @@ class LocalPlaybackService : Service() {
     private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
         when (change) {
             AudioManager.AUDIOFOCUS_GAIN -> {
+                restorePlayerVolume()
                 if (pausedForFocus) {
                     pausedForFocus = false
                     startOrResumePlayback()
                 }
             }
             AudioManager.AUDIOFOCUS_LOSS -> {
-                if (playing || pausedForFocus) pauseForFocus(resumeOnFocusGain = false)
+                if (playing || pausedForFocus) {
+                    pausePlaybackInternal(abandonFocus = false, resumeOnFocusGain = false)
+                }
+                // A permanent loss is not recoverable: release the request/listener bookkeeping.
+                abandonAudioFocus()
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 if (playing) pauseForFocus(resumeOnFocusGain = true)
             }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> Unit
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                duckPlayerVolume()
+            }
         }
     }
 
@@ -118,12 +148,19 @@ class LocalPlaybackService : Service() {
         override fun onStop() = stopPlayback()
     }
 
+    // The legacy media-button/transport flags are deprecated on newer APIs but are still needed
+    // for older and AVRCP media-button routing.
+    @Suppress("DEPRECATION")
     override fun onCreate() {
         super.onCreate()
         audioManager = getSystemService(AudioManager::class.java)
         notificationManager = getSystemService(NotificationManager::class.java)
         createNotificationChannel()
         mediaSession = MediaSession(this, MEDIA_SESSION_TAG).apply {
+            setFlags(
+                MediaSession.FLAG_HANDLES_MEDIA_BUTTONS or
+                    MediaSession.FLAG_HANDLES_TRANSPORT_CONTROLS,
+            )
             setCallback(mediaSessionCallback)
             setSessionActivity(contentPendingIntent())
             isActive = true
@@ -207,10 +244,18 @@ class LocalPlaybackService : Service() {
         libraryExecutor.execute {
             val tracks = try {
                 LocalLibrary.loadByIds(this, ids)
-            } catch (_: SecurityException) {
-                emptyList()
+            } catch (_: Exception) {
+                null
             }
             if (destroyed || generation != loadGeneration) return@execute
+            if (tracks == null) {
+                // Never leave the placeholder foreground running without a resolved queue.
+                mainHandler.post {
+                    if (destroyed || generation != loadGeneration) return@post
+                    stopPlayback()
+                }
+                return@execute
+            }
 
             val resolved = resolveStartIndex(requestedId, tracks)
             mainHandler.post {
@@ -229,8 +274,10 @@ class LocalPlaybackService : Service() {
         releasePlayer()
         queue = null
         playing = false
+        prepared = false
         ended = false
         pausedForFocus = false
+        playbackError = false
         abandonAudioFocus()
         mediaSession.setMetadata(null)
         LocalNowPlayingState.update(null, false)
@@ -261,33 +308,55 @@ class LocalPlaybackService : Service() {
         releasePlayer()
         updateMetadata(track)
 
+        playing = false
+        playbackError = false
+        ended = false
+        autoPlayWhenPrepared = autoPlay
+        // releasePlayer() bumped the token, so this prepare attempt has a unique identity.
+        val token = playbackToken
+
         val mediaPlayer = MediaPlayer()
+        player = mediaPlayer
         try {
             mediaPlayer.setAudioAttributes(audioAttributes)
             mediaPlayer.setDataSource(this, LocalLibrary.contentUri(track.id))
-            mediaPlayer.setOnCompletionListener { onTrackCompleted() }
-            mediaPlayer.setOnErrorListener { _, _, _ ->
-                handlePlaybackError()
+            mediaPlayer.setVolume(1f, 1f)
+            mediaPlayer.setOnPreparedListener { preparedPlayer ->
+                onPlayerPrepared(token, track.id, preparedPlayer)
+            }
+            mediaPlayer.setOnCompletionListener { completedPlayer ->
+                onPlayerCompleted(token, completedPlayer)
+            }
+            mediaPlayer.setOnErrorListener { failedPlayer, _, _ ->
+                onPlayerError(token, failedPlayer)
                 true
             }
-            mediaPlayer.prepare()
+            // Never block the main thread; onPlayerPrepared starts playback once ready.
+            mediaPlayer.prepareAsync()
         } catch (_: Exception) {
-            try {
-                mediaPlayer.release()
-            } catch (_: Exception) {
-            }
             handlePlaybackError()
             return
         }
 
-        player = mediaPlayer
-        ended = false
+        publishPlayback()
+    }
 
-        if (!autoPlay) {
+    private fun onPlayerPrepared(token: Long, trackId: Long, mediaPlayer: MediaPlayer) {
+        if (!isCurrentPlayer(token, mediaPlayer)) return
+        // A stale prepare must never start a different queue track.
+        if (queue?.current?.id != trackId) return
+
+        prepared = true
+        playbackError = false
+        ended = false
+        restorePlayerVolume()
+
+        if (!autoPlayWhenPrepared) {
             playing = false
             publishPlayback()
             return
         }
+        autoPlayWhenPrepared = false
 
         if (!requestAudioFocus()) {
             playing = false
@@ -306,11 +375,29 @@ class LocalPlaybackService : Service() {
         publishPlayback()
     }
 
+    private fun onPlayerCompleted(token: Long, mediaPlayer: MediaPlayer) {
+        if (!isCurrentPlayer(token, mediaPlayer)) return
+        onTrackCompleted()
+    }
+
+    private fun onPlayerError(token: Long, mediaPlayer: MediaPlayer) {
+        if (!isCurrentPlayer(token, mediaPlayer)) return
+        handlePlaybackError()
+    }
+
+    private fun isCurrentPlayer(token: Long, mediaPlayer: MediaPlayer): Boolean =
+        !destroyed && token == playbackToken && player === mediaPlayer
+
     private fun startOrResumePlayback() {
         if (queue?.current == null) return
         val mediaPlayer = player
         if (mediaPlayer == null) {
             startCurrentTrack(autoPlay = true)
+            return
+        }
+        if (!prepared) {
+            // Still preparing: remember the intent and let onPlayerPrepared start it.
+            autoPlayWhenPrepared = true
             return
         }
 
@@ -321,15 +408,14 @@ class LocalPlaybackService : Service() {
         }
 
         if (ended) {
-            try {
-                mediaPlayer.seekTo(0)
-            } catch (_: IllegalStateException) {
+            if (!seekPlayerTo(mediaPlayer, 0L)) {
                 handlePlaybackError()
                 return
             }
             ended = false
         }
 
+        restorePlayerVolume()
         try {
             mediaPlayer.start()
         } catch (_: IllegalStateException) {
@@ -337,6 +423,7 @@ class LocalPlaybackService : Service() {
             return
         }
         playing = true
+        playbackError = false
         pausedForFocus = false
         publishPlayback()
     }
@@ -355,7 +442,7 @@ class LocalPlaybackService : Service() {
 
     private fun pausePlaybackInternal(abandonFocus: Boolean, resumeOnFocusGain: Boolean) {
         val mediaPlayer = player
-        if (mediaPlayer != null) {
+        if (mediaPlayer != null && prepared) {
             try {
                 if (mediaPlayer.isPlaying) mediaPlayer.pause()
             } catch (_: IllegalStateException) {
@@ -363,11 +450,13 @@ class LocalPlaybackService : Service() {
         }
         playing = false
         ended = false
+        // A pause while a prepare is still in flight must not start playback when it completes.
+        autoPlayWhenPrepared = false
         pausedForFocus = resumeOnFocusGain
         if (abandonFocus) {
+            // Never clear the focus flags without actually abandoning: pauseForFocus keeps focus
+            // so a transient loss can resume, and abandonAudioFocus performs the cleanup.
             abandonAudioFocus()
-        } else {
-            hasAudioFocus = false
         }
         publishPlayback()
     }
@@ -384,19 +473,22 @@ class LocalPlaybackService : Service() {
 
     private fun seekTo(position: Long) {
         val mediaPlayer = player ?: return
-        val target = try {
-            position.coerceIn(0L, mediaPlayer.duration.toLong())
-        } catch (_: IllegalStateException) {
-            return
-        }
-        try {
-            mediaPlayer.seekTo(target.toInt())
-        } catch (_: IllegalStateException) {
-            return
-        }
+        if (!prepared) return
+        if (!seekPlayerTo(mediaPlayer, position)) return
         ended = false
         publishState()
     }
+
+    private fun seekPlayerTo(mediaPlayer: MediaPlayer, position: Long): Boolean =
+        try {
+            val duration = mediaPlayer.duration
+            mediaPlayer.seekTo(clampSeekPosition(position, duration))
+            true
+        } catch (_: IllegalStateException) {
+            false
+        } catch (_: IllegalArgumentException) {
+            false
+        }
 
     private fun onTrackCompleted() {
         val next = queue?.moveNext()
@@ -412,6 +504,7 @@ class LocalPlaybackService : Service() {
     }
 
     private fun handlePlaybackError() {
+        playbackError = true
         releasePlayer()
         playing = false
         ended = false
@@ -421,14 +514,40 @@ class LocalPlaybackService : Service() {
     }
 
     private fun releasePlayer() {
+        // Invalidate pending prepare/completion callbacks before the old player goes away.
+        playbackToken += 1
+        prepared = false
+        autoPlayWhenPrepared = false
+
         val mediaPlayer = player ?: return
         player = null
+        restoreVolume(mediaPlayer)
         try {
             mediaPlayer.reset()
         } catch (_: IllegalStateException) {
+        } catch (_: IllegalArgumentException) {
         }
         try {
             mediaPlayer.release()
+        } catch (_: IllegalStateException) {
+        }
+    }
+
+    private fun restoreVolume(mediaPlayer: MediaPlayer) {
+        try {
+            mediaPlayer.setVolume(1f, 1f)
+        } catch (_: IllegalStateException) {
+        }
+    }
+
+    private fun restorePlayerVolume() {
+        player?.let(::restoreVolume)
+    }
+
+    private fun duckPlayerVolume() {
+        val mediaPlayer = player ?: return
+        try {
+            mediaPlayer.setVolume(0.2f, 0.2f)
         } catch (_: IllegalStateException) {
         }
     }
@@ -451,18 +570,25 @@ class LocalPlaybackService : Service() {
             )
         }
         hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        if (hasAudioFocus) focusRequested = true
         return hasAudioFocus
     }
 
     @Suppress("DEPRECATION")
     private fun abandonAudioFocus() {
-        if (!hasAudioFocus) return
+        // focusRequested stays true across a transient-loss pause, so cleanup cannot be skipped
+        // just because playback (and hasAudioFocus) was flipped to false.
+        if (!focusRequested) return
+        restorePlayerVolume()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
         } else {
             audioManager.abandonAudioFocus(focusListener)
         }
+        // Only after the abandon request is issued: drop the listener and its bookkeeping.
+        audioFocusRequest = null
         hasAudioFocus = false
+        focusRequested = false
     }
 
     private fun registerNoisyReceiver() {
@@ -479,7 +605,7 @@ class LocalPlaybackService : Service() {
     private fun publishPlayback() {
         publishState()
         updateNotification()
-        LocalNowPlayingState.update(queue?.current, playing)
+        LocalNowPlayingState.update(queue?.current, playing, playbackError)
     }
 
     private fun publishState() {
@@ -630,13 +756,17 @@ class LocalPlaybackService : Service() {
         )
     }
 
-    private fun servicePendingIntent(action: String, requestCode: Int): PendingIntent =
-        PendingIntent.getService(
-            this,
-            requestCode,
-            Intent(this, LocalPlaybackService::class.java).setAction(action),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
+    private fun servicePendingIntent(action: String, requestCode: Int): PendingIntent {
+        val intent = Intent(this, LocalPlaybackService::class.java).setAction(action)
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        // On API 26+ the actions start a foreground service, and getService can race the
+        // background-start restrictions when the app is not in the foreground.
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            PendingIntent.getForegroundService(this, requestCode, intent, flags)
+        } else {
+            PendingIntent.getService(this, requestCode, intent, flags)
+        }
+    }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -654,8 +784,10 @@ class LocalPlaybackService : Service() {
         releasePlayer()
         queue = null
         playing = false
+        prepared = false
         ended = false
         pausedForFocus = false
+        playbackError = false
         abandonAudioFocus()
         mediaSession.setMetadata(null)
         mediaSession.setPlaybackState(
