@@ -258,6 +258,12 @@ class LocalPlaybackService : Service() {
 
     private fun startQueue(ids: LongArray, startIndex: Int) {
         val generation = ++loadGeneration
+        // Close the outgoing track while its queue/player are still valid: a new queue always
+        // starts a new listening session, even when the incoming metadata is identical.
+        if (queue?.current != null) {
+            reportLocalPlayback(playing = false)
+            flushListeningHistory()
+        }
         resetPlayback()
         // Starting a queue is an explicit user play request; keep the intent even if the
         // preparation later fails, so a skip from the error state can resume playback.
@@ -513,14 +519,24 @@ class LocalPlaybackService : Service() {
     private fun skipNext() {
         // Capture intent first: moving the queue and startCurrentTrack clear playing/flags.
         val continuePlaying = shouldPlayAfterSkip(playing, autoPlayWhenPrepared, playIntent)
-        if (queue?.moveNext() == null) return
+        val currentQueue = queue ?: return
+        // At the last track there is nothing to skip to; keep the current session open.
+        if (!currentQueue.hasNext) return
+        // Close the outgoing track before the queue moves so its final position is recorded.
+        reportLocalPlayback(playing = false)
+        if (currentQueue.moveNext() == null) return
         startCurrentTrack(autoPlay = continuePlaying)
     }
 
     private fun skipPrevious() {
         // Capture intent first: moving the queue and startCurrentTrack clear playing/flags.
         val continuePlaying = shouldPlayAfterSkip(playing, autoPlayWhenPrepared, playIntent)
-        if (queue?.movePrevious() == null) return
+        val currentQueue = queue ?: return
+        // At the first track there is nothing to skip to; keep the current session open.
+        if (!currentQueue.hasPrevious) return
+        // Close the outgoing track before the queue moves so its final position is recorded.
+        reportLocalPlayback(playing = false)
+        if (currentQueue.movePrevious() == null) return
         startCurrentTrack(autoPlay = continuePlaying)
     }
 
@@ -544,13 +560,15 @@ class LocalPlaybackService : Service() {
         }
 
     private fun onTrackCompleted() {
+        // Close the completed track before the queue moves: its final position is only readable
+        // while the old queue entry and player are still current.
+        reportLocalPlayback(playing = false)
         val next = queue?.moveNext()
         if (next == null) {
             ended = true
             playing = false
             pausedForFocus = false
             abandonAudioFocus()
-            reportLocalPlayback(playing = false)
             flushListeningHistory()
             publishPlayback()
         } else {
@@ -560,6 +578,8 @@ class LocalPlaybackService : Service() {
 
     private fun handlePlaybackError() {
         playbackError = true
+        // Report before releasing the player so the final position is the real one.
+        reportLocalPlayback(playing = false)
         // releasePlayer() drops autoPlayWhenPrepared, but playIntent deliberately survives: a skip
         // from the error state resumes only if the user's last explicit intent was to play.
         releasePlayer()
@@ -567,7 +587,7 @@ class LocalPlaybackService : Service() {
         ended = false
         pausedForFocus = false
         abandonAudioFocus()
-        reportLocalPlayback(playing = false)
+        flushListeningHistory()
         publishPlayback()
     }
 
@@ -673,7 +693,7 @@ class LocalPlaybackService : Service() {
         app.listeningHistory.onLocal(
             track = track,
             playing = playing,
-            positionMs = player?.currentPosition?.toLong()?.coerceAtLeast(0L) ?: 0L,
+            positionMs = currentPosition().coerceAtLeast(0L),
         )
     }
 
