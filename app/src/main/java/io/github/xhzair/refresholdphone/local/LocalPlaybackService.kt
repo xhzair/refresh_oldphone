@@ -26,6 +26,7 @@ import android.os.Looper
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import io.github.xhzair.refresholdphone.MainActivity
+import io.github.xhzair.refresholdphone.MediaShellApplication
 import io.github.xhzair.refresholdphone.R
 import java.util.concurrent.Executors
 
@@ -221,6 +222,9 @@ class LocalPlaybackService : Service() {
 
     override fun onDestroy() {
         destroyed = true
+        // A direct destroy can bypass stopPlayback; close the final track and persist it.
+        reportLocalPlayback(playing = false)
+        flushListeningHistory()
         loadGeneration += 1
         playIntent = false
         mainHandler.removeCallbacksAndMessages(null)
@@ -399,6 +403,7 @@ class LocalPlaybackService : Service() {
         }
         playing = true
         pausedForFocus = false
+        reportLocalPlayback(playing = true)
         publishPlayback()
     }
 
@@ -453,6 +458,7 @@ class LocalPlaybackService : Service() {
         playing = true
         playbackError = false
         pausedForFocus = false
+        reportLocalPlayback(playing = true)
         publishPlayback()
     }
 
@@ -479,6 +485,9 @@ class LocalPlaybackService : Service() {
         resumeOnFocusGain: Boolean,
         clearPlayIntent: Boolean,
     ) {
+        // Only a pause of actually-started playback is a state change worth reporting; pausing
+        // while a prepare is in flight must not report before the track ever played.
+        val wasPlaying = playing
         val mediaPlayer = player
         if (mediaPlayer != null && prepared) {
             try {
@@ -497,6 +506,7 @@ class LocalPlaybackService : Service() {
             // so a transient loss can resume, and abandonAudioFocus performs the cleanup.
             abandonAudioFocus()
         }
+        if (wasPlaying) reportLocalPlayback(playing = false)
         publishPlayback()
     }
 
@@ -540,6 +550,8 @@ class LocalPlaybackService : Service() {
             playing = false
             pausedForFocus = false
             abandonAudioFocus()
+            reportLocalPlayback(playing = false)
+            flushListeningHistory()
             publishPlayback()
         } else {
             startCurrentTrack(autoPlay = true)
@@ -555,6 +567,7 @@ class LocalPlaybackService : Service() {
         ended = false
         pausedForFocus = false
         abandonAudioFocus()
+        reportLocalPlayback(playing = false)
         publishPlayback()
     }
 
@@ -651,6 +664,23 @@ class LocalPlaybackService : Service() {
         publishState()
         updateNotification()
         LocalNowPlayingState.update(queue?.current, playing, playbackError)
+    }
+
+    /** Reports the queue's current track to the app-level listening history. */
+    private fun reportLocalPlayback(playing: Boolean) {
+        val track = queue?.current ?: return
+        val app = application as? MediaShellApplication ?: return
+        app.listeningHistory.onLocal(
+            track = track,
+            playing = playing,
+            positionMs = player?.currentPosition?.toLong()?.coerceAtLeast(0L) ?: 0L,
+        )
+    }
+
+    /** Persists the active listening session; called only where playback really ends. */
+    private fun flushListeningHistory() {
+        val app = application as? MediaShellApplication ?: return
+        app.listeningHistory.flush()
     }
 
     private fun publishState() {
@@ -824,6 +854,9 @@ class LocalPlaybackService : Service() {
     }
 
     private fun stopPlayback() {
+        // Report before releasing the player/clearing the queue so the final position is valid.
+        reportLocalPlayback(playing = false)
+        flushListeningHistory()
         loadGeneration += 1
         mainHandler.removeCallbacksAndMessages(null)
         releasePlayer()
