@@ -1,0 +1,260 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:fitsSystemWindows="true"
+    android:scrollbarStyle="insideInset">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/screen_padding"
+        android:paddingTop="@dimen/screen_padding"
+        android:paddingEnd="@dimen/screen_padding"
+        android:paddingBottom="48dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/back"
+                style="@style/TextAction"
+                android:layout_width="wrap_content"
+                android:text="@string/settings_back" />
+
+            <TextView
+                style="@style/HomeText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_weight="1"
+                android:text="@string/listening_stats_title"
+                android:textSize="28sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/previousMonth"
+                style="@style/TextAction"
+                android:layout_width="@dimen/touch_target"
+                android:layout_height="@dimen/touch_target"
+                android:text="@string/listening_stats_previous_month"
+                android:textSize="24sp" />
+
+            <TextView
+                android:id="@+id/monthLabel"
+                style="@style/HomeText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:textSize="22sp" />
+
+            <Button
+                android:id="@+id/nextMonth"
+                style="@style/TextAction"
+                android:layout_width="@dimen/touch_target"
+                android:layout_height="@dimen/touch_target"
+                android:text="@string/listening_stats_next_month"
+                android:textSize="24sp" />
+        </LinearLayout>
+
+        <TextView
+            style="@style/SettingsHint"
+            android:text="@string/listening_stats_coverage" />
+
+        <TextView
+            android:id="@+id/errorText"
+            style="@style/HomeText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/listening_stats_error"
+            android:textColor="@color/accent"
+            android:textSize="16sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/totalDuration"
+            style="@style/HomeText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/cover_background"
+            android:padding="12dp"
+            android:text="@string/listening_stats_empty" />
+
+        <TextView
+            android:id="@+id/activeDays"
+            style="@style/HomeText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/cover_background"
+            android:padding="12dp"
+            android:text="@string/listening_stats_empty" />
+
+        <TextView
+            android:id="@+id/sessionCount"
+            style="@style/HomeText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/cover_background"
+            android:padding="12dp"
+            android:text="@string/listening_stats_empty" />
+
+        <TextView
+            android:id="@+id/longestSession"
+            style="@style/HomeText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/cover_background"
+            android:padding="12dp"
+            android:text="@string/listening_stats_empty" />
+
+        <TextView
+            style="@style/SettingsSectionHeader"
+            android:text="@string/listening_stats_section_tracks" />
+
+        <TextView
+            android:id="@+id/topTracks"
+            style="@style/HomeText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/settings_hint_gap"
+            android:lineSpacingMultiplier="1.2"
+            android:text="@string/listening_stats_empty" />
+
+        <TextView
+            style="@style/SettingsSectionHeader"
+            android:text="@string/listening_stats_section_artists" />
+
+        <TextView
+            android:id="@+id/topArtists"
+            style="@style/HomeText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/settings_hint_gap"
+            android:lineSpacingMultiplier="1.2"
+            android:text="@string/listening_stats_empty" />
+
+        <TextView
+            style="@style/SettingsSectionHeader"
+            android:text="@string/listening_stats_section_albums" />
+
+        <TextView
+            android:id="@+id/topAlbums"
+            style="@style/HomeText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/settings_hint_gap"
+            android:lineSpacingMultiplier="1.2"
+            android:text="@string/listening_stats_empty" />
+
+        <TextView
+            style="@style/SettingsSectionHeader"
+            android:text="@string/listening_stats_section_sources" />
+
+        <TextView
+            android:id="@+id/sources"
+            style="@style/HomeText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/settings_hint_gap"
+            android:lineSpacingMultiplier="1.2"
+            android:text="@string/listening_stats_empty" />
+
+        <TextView
+            style="@style/SettingsSectionHeader"
+            android:text="@string/listening_stats_section_hours" />
+
+        <LinearLayout
+            android:id="@+id/hoursChart"
+            android:layout_width="match_parent"
+            android:layout_height="96dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/cover_background"
+            android:gravity="bottom"
+            android:importantForAccessibility="no"
+            android:orientation="horizontal"
+            android:padding="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <TextView
+                style="@style/HomeText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="start"
+                android:text="@string/listening_stats_hour_0"
+                android:textColor="@color/muted"
+                android:textSize="14sp" />
+
+            <TextView
+                style="@style/HomeText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="@string/listening_stats_hour_6"
+                android:textColor="@color/muted"
+                android:textSize="14sp" />
+
+            <TextView
+                style="@style/HomeText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="@string/listening_stats_hour_12"
+                android:textColor="@color/muted"
+                android:textSize="14sp" />
+
+            <TextView
+                style="@style/HomeText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:text="@string/listening_stats_hour_18"
+                android:textColor="@color/muted"
+                android:textSize="14sp" />
+
+            <TextView
+                style="@style/HomeText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="end"
+                android:text="@string/listening_stats_hour_23"
+                android:textColor="@color/muted"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/clearHistory"
+            style="@style/TextAction"
+            android:layout_width="match_parent"
+            android:layout_marginTop="32dp"
+            android:text="@string/listening_stats_clear"
+            android:textColor="@color/accent" />
+    </LinearLayout>
+</ScrollView>

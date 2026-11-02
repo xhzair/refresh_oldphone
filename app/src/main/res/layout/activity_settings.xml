@@ -139,6 +139,21 @@
 
         <TextView
             style="@style/SettingsSectionHeader"
+            android:text="@string/settings_section_listening_stats" />
+
+        <TextView
+            style="@style/SettingsHint"
+            android:text="@string/settings_listening_stats_hint" />
+
+        <Button
+            android:id="@+id/listeningStats"
+            style="@style/TextAction"
+            android:layout_width="match_parent"
+            android:layout_marginTop="@dimen/settings_item_gap"
+            android:text="@string/settings_listening_stats" />
+
+        <TextView
+            style="@style/SettingsSectionHeader"
             android:text="@string/settings_section_system" />
 
         <Button

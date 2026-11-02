@@ -1,5 +1,6 @@
 package io.github.xhzair.refresholdphone.ui
 
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.widget.CheckBox
@@ -56,6 +57,9 @@ class SettingsActivity : AppCompatActivity() {
         binding.selectApps.setOnClickListener { showAppSelection() }
         binding.openNotificationAccess.setOnClickListener {
             actions.openNotificationAccessSettings()
+        }
+        binding.listeningStats.setOnClickListener {
+            startActivity(Intent(this, ListeningStatsActivity::class.java))
         }
         binding.openWifi.setOnClickListener { actions.openWifiSettings() }
         binding.openMobileNetwork.setOnClickListener { actions.openMobileNetworkSettings() }
