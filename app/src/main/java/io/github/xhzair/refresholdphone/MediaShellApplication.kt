@@ -8,13 +8,16 @@ import io.github.xhzair.refresholdphone.apps.AndroidInstalledAppSource
 import io.github.xhzair.refresholdphone.apps.AppCatalog
 import io.github.xhzair.refresholdphone.media.AndroidExternalPlaybackBridge
 import io.github.xhzair.refresholdphone.media.SingleSourcePlaybackGuard
+import io.github.xhzair.refresholdphone.media.supportedPlaybackPackages
 import io.github.xhzair.refresholdphone.prefs.UserPreferences
 import io.github.xhzair.refresholdphone.stats.ListeningHistoryRepository
+import io.github.xhzair.refresholdphone.stats.PlaybackHistoryObserver
 import io.github.xhzair.refresholdphone.system.AndroidSystemStatusSource
 import io.github.xhzair.refresholdphone.ui.HomeViewModel
 
 class MediaShellApplication : Application() {
     private lateinit var singleSourceGuard: SingleSourcePlaybackGuard
+    private lateinit var playbackHistoryObserver: PlaybackHistoryObserver
 
     lateinit var listeningHistory: ListeningHistoryRepository
 
@@ -25,12 +28,22 @@ class MediaShellApplication : Application() {
         singleSourceGuard.start()
         listeningHistory = ListeningHistoryRepository(this)
         listeningHistory.closeStaleOnStart()
+        playbackHistoryObserver = PlaybackHistoryObserver(this, listeningHistory) {
+            supportedPlaybackPackages + UserPreferences(this).selectedPackages()
+        }
+        playbackHistoryObserver.start()
     }
 
     /** Keeps the process-level exclusivity guard alive after permission grants or restarts. */
     fun ensureSingleSourceGuardStarted() = singleSourceGuard.start()
 
     fun stopSingleSourceGuard() = singleSourceGuard.stop()
+
+    /** Starts external playback recording after notification access is granted. */
+    fun ensurePlaybackHistoryObserverStarted() = playbackHistoryObserver.start()
+
+    /** Detaches the observer when notification access is revoked or the listener disconnects. */
+    fun stopPlaybackHistoryObserver() = playbackHistoryObserver.stop()
 
     /**
      * Instrumentation-only substitution point. Tests set this before launching an

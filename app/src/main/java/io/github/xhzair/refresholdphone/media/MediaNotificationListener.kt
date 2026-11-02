@@ -7,11 +7,13 @@ class MediaNotificationListener : android.service.notification.NotificationListe
         super.onListenerConnected()
         mediaListenerConnections.update(true)
         (application as? MediaShellApplication)?.ensureSingleSourceGuardStarted()
+        (application as? MediaShellApplication)?.ensurePlaybackHistoryObserverStarted()
     }
 
     override fun onListenerDisconnected() {
         mediaListenerConnections.update(false)
         (application as? MediaShellApplication)?.stopSingleSourceGuard()
+        (application as? MediaShellApplication)?.stopPlaybackHistoryObserver()
         super.onListenerDisconnected()
     }
 }
