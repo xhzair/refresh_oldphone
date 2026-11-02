@@ -4,7 +4,7 @@
 
 应用本身只提供轻量 HOME 桌面、设备状态和跨应用播放状态展示；音乐与播客仍由你已安装的官方 App（网易云音乐、QQ 音乐、小宇宙等）播放，本项目不重做登录、会员、版权或播放能力，也不下载、不分发第三方 APK。
 
-当前版本：0.1.0（MVP，最低 Android 6.0 / API 23）。
+当前版本：1.0.0（首个公开版本，最低 Android 6.0 / API 23）。
 
 ## 功能
 
@@ -75,6 +75,14 @@
 
 - Android 6.0（API 23）及以上；已在 Xiaomi MIX 2S（Android 10 / API 29，MIUI 12.5）验证。
 - 构建：JDK 17、Android SDK Platform 36、Build-Tools 36.0.0、Gradle 9.6.0（仓库自带 wrapper）。
+
+## 下载
+
+最新签名 APK 见 [GitHub Releases](https://github.com/xhzair/refresh_oldphone/releases/latest)：
+
+- `refresh-oldphone-1.0.0.apk`，要求 Android 6.0+（API 23）。
+- 先作为普通 App 安装并打开；确认首页正常后，再在“设置 → 默认桌面”中选择“媒体桌面”。
+- 校验值随 Release 说明提供；应用无广告、无账号、无网络上传。
 
 ## 构建
 
