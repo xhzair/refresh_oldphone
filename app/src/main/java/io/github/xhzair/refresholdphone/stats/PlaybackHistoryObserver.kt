@@ -20,7 +20,7 @@ import io.github.xhzair.refresholdphone.media.MediaNotificationListener
  * The observer is owned by [io.github.xhzair.refresholdphone.MediaShellApplication] and is
  * event-driven: the active-session listener plus per-controller callbacks decide when to report,
  * so nothing polls. Only packages the desktop exposes are recorded, and this app's own sessions
- * are skipped because local playback is reported directly by the playback service.
+ * are skipped because this app's own local playback is not part of listening history.
  *
  * A playing session opens a history session through [ListeningHistoryRepository.onExternal].
  * When that session stops playing it is reported once as paused so the tracker keeps the session

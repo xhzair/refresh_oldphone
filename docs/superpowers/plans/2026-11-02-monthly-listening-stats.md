@@ -6,7 +6,7 @@
 
 > **2026-11-02 范围调整（用户决定）**：收听记录只统计外部 App，本地音乐不计入。计划中涉及本地播放上报/本地来源的 Task 4 等内容为历史记录，实际实现已移除本地上报并在查询层过滤本地行。
 
-**Architecture:** 新增 `stats/` 包：纯逻辑 `ListeningSessionTracker` 与 `ListeningStatsAggregator`、SQLite `ListeningStatsStore`、`ListeningHistoryRepository`、Application 级 `PlaybackHistoryObserver`。本地播放服务直接上报，外部源通过 MediaSession 观察；`ListeningStatsActivity` 展示月报。
+**Architecture:** 新增 `stats/` 包：纯逻辑 `ListeningSessionTracker` 与 `ListeningStatsAggregator`、SQLite `ListeningStatsStore`、`ListeningHistoryRepository`、Application 级 `PlaybackHistoryObserver`。外部源通过 MediaSession 观察；本地音乐不纳入；`ListeningStatsActivity` 展示月报。
 
 **Tech Stack:** Kotlin、平台 `MediaSession`/`MediaSessionManager`、SQLiteOpenHelper、AppCompat/Views、JUnit4；无新依赖、无网络。
 
@@ -40,7 +40,7 @@
 - `app/src/main/java/io/github/xhzair/refresholdphone/ui/ListeningStatsActivity.kt`
 - `app/src/main/res/layout/activity_listening_stats.xml`
 - 单元测试：`ListeningSessionTrackerTest`、`ListeningStatsAggregatorTest`
-- 证据：`docs/device-evidence/32-listening-stats-month.jpg`（Task 7）
+- 证据：`docs/device-evidence/33-listening-stats-summary.jpg` 与 `32-listening-stats-external.jpg`（Task 7）
 
 修改：
 
@@ -639,10 +639,10 @@ Manifest 注册 Activity `exported=false`；strings 添加标题/说明/清空/�
 
 ### Task 7: 真机验收 + 文档
 
-- 安装最新 APK；确保本地音乐可播放。
-- 本地播放 2 首、暂停/继续/切歌；打开设置 → 收听记录，确认总时长/Top/来源/时段；截图 `32-listening-stats-month.jpg`。
+- 安装最新 APK；确保外部音乐 App 可播放（本地音乐不纳入）。
+- 外部播放 2 首、暂停/继续/切歌；打开设置 → 收听记录，确认总时长/Top/来源/时段；截图 `33-listening-stats-summary.jpg` 与 `32-listening-stats-external.jpg`。
 - 进程存活时播放 QQ/网易云，返回桌面再打开月报，确认外部源出现、覆盖说明显示。
-- 清除记录、月切换、空月份、重启持久化；未授权通知使用权时本地仍记录、无崩溃（可在设置关闭通知使用权测试）。
+- 清除记录、月切换、空月份、重启持久化；未授权通知使用权时无记录、无崩溃（可在设置关闭通知使用权测试）；本地音乐不记录。
 - 更新 README 功能/界面/已知限制、privacy（收听历史保存与清除、外部覆盖）、release-checklist、device-testing §10。
 - 提交 `docs: record monthly listening stats acceptance`.
 
