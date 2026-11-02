@@ -193,4 +193,5 @@
 - 收听记录（仅外部）：QQ/网易云来源正常，本地播放后数据库无 `LOCAL` 行；月份切换、横竖屏重建月份保持、清空确认后归零均通过。
 - 进程：`force-stop` 后按 HOME 冷启动正常，默认桌面角色保留；重启后设备停留在安全锁屏的 `FallbackHome`，按 Android 预期需用户解锁后才会启动默认 HOME（与第 7 节一致）。
 - Android 16 模拟器（`sdk_gphone64_x86_64`，1080×2424）：签名 Release 1.0.0 可安装、设为默认 HOME 并启动；发现并修复 edge-to-edge 下首页左侧 24dp 内边距丢失（移除 `fitsSystemWindows`），复测时钟/日期/封面/底部图标不再贴边。
-- 待补：解锁设备后安装已签名 Release APK（需先卸载 debug 包，签名不同），复核首次启动、默认桌面与收听记录空数据；以及安全锁屏媒体控制/蓝牙硬件按键的真实设备覆盖。
+- 签名 Release 安装（MIX 2S）：MIUI 的 `adb install` 被 `INSTALL_FAILED_USER_RESTRICTED` 拒绝后，改用 `adb push … /data/local/tmp` + `adb shell pm install -r /data/local/tmp/refresh-oldphone-1.0.0.apk` 成功；卸载 debug 包后安装，`versionName=1.0.0`、`versionCode=2`，设为默认 HOME，启动、媒体源弹窗、本地播放、子页按 HOME 返回均通过。收听记录页面沿用 debug 版验收；签名包为空数据库首次展示未单独截图。
+- 待补：安全锁屏下的媒体控制、真实蓝牙耳机/车机按键；签名 Release 重启后的默认 HOME 持久化（设备安全锁屏，未复测）；以及 Release 空数据库下收听记录页的首次展示。
