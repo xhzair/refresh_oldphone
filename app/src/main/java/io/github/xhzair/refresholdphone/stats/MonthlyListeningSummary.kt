@@ -1,6 +1,10 @@
 package io.github.xhzair.refresholdphone.stats
 
-data class RankedListeningItem(val label: String, val listenedMs: Long)
+data class RankedListeningItem(
+    val label: String,
+    val listenedMs: Long,
+    val detail: String? = null,
+)
 
 data class ListeningSourceShare(
     val label: String,

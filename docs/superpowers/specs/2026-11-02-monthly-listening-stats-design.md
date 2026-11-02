@@ -142,17 +142,19 @@ data class MonthlyListeningSummary(
     val totalListenedMs: Long,
     val sessionCount: Int,
     val activeDays: Int,
-    val topTracks: List<RankedItem>, // title + artist + listenedMs
-    val topArtists: List<RankedItem>,
-    val topAlbums: List<RankedItem>,
+    val topTracks: List<RankedItem>, // label=标题, detail=歌手, listenedMs
+    val topArtists: List<RankedItem>, // label=歌手, detail=null
+    val topAlbums: List<RankedItem>, // label=专辑, detail=null
     val sources: List<SourceShare>,  // 本地 / 外部包名 + 时长 + 占比
-    val hours: IntArray,             // 24 小时收听时长
+    val hours: LongArray,            // 24 小时收听时长
     val longestSessionMs: Long,
 )
 ```
 
 规则：
 
+- 排名标签统一 `trim()`；空白标题/歌手/专辑分别回退「未知歌曲/未知歌手/未知专辑」，空白外部包名回退「外部应用」。
+- 歌曲按「标题 + 歌手」分组，同名不同歌手不合并；歌手、专辑按规范化后的名称分组。
 - 按 `startedAtMs` 落在目标月份过滤；时区使用设备默认时区。
 - 活跃天数：按会话开始日去重。
 - Top 排序：先按累计收听时长降序，再按名称/包名稳定排序；Top 5。
