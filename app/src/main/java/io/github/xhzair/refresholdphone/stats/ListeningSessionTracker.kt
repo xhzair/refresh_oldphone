@@ -1,0 +1,99 @@
+package io.github.xhzair.refresholdphone.stats
+
+import java.util.UUID
+
+class ListeningSessionTracker(
+    private val store: (ListeningSession) -> Unit,
+    private val uidFactory: () -> String = { UUID.randomUUID().toString() },
+) {
+    private data class Active(
+        val uid: String,
+        val identity: String,
+        var observation: PlaybackObservation,
+        val startedAtMs: Long,
+        var lastObservedAtMs: Long,
+        var playing: Boolean,
+        var listenedMs: Long,
+        var lastPositionMs: Long,
+    )
+
+    private var active: Active? = null
+
+    fun onObserved(observation: PlaybackObservation, nowMs: Long) {
+        if (observation.title.isBlank() || nowMs < 0L) return
+        val identity = identityOf(observation)
+        val current = active
+        if (current != null && current.identity != identity) {
+            closeCurrent(nowMs)
+        }
+        val existing = active
+        if (existing == null) {
+            if (!observation.playing) return
+            active = Active(
+                uid = uidFactory(),
+                identity = identity,
+                observation = observation,
+                startedAtMs = nowMs,
+                lastObservedAtMs = nowMs,
+                playing = true,
+                listenedMs = 0,
+                lastPositionMs = observation.positionMs,
+            )
+        } else {
+            if (existing.playing) {
+                existing.listenedMs += (nowMs - existing.lastObservedAtMs).coerceAtLeast(0)
+            }
+            existing.playing = observation.playing
+            existing.observation = observation
+            existing.lastPositionMs = observation.positionMs
+            existing.lastObservedAtMs = nowMs
+            persist(closed = false)
+        }
+    }
+
+    fun flush(nowMs: Long) {
+        closeCurrent(nowMs)
+    }
+
+    private fun closeCurrent(nowMs: Long) {
+        val current = active ?: return
+        if (current.playing) {
+            current.listenedMs += (nowMs - current.lastObservedAtMs).coerceAtLeast(0)
+        }
+        active = null
+        persist(current, closed = true, nowMs = nowMs)
+    }
+
+    private fun persist(closed: Boolean) {
+        active?.let { persist(it, closed, it.lastObservedAtMs) }
+    }
+
+    private fun persist(active: Active, closed: Boolean, nowMs: Long) {
+        store(
+            ListeningSession(
+                uid = active.uid,
+                sourceKind = active.observation.sourceKind,
+                packageName = active.observation.packageName,
+                title = active.observation.title,
+                artist = active.observation.artist,
+                album = active.observation.album,
+                startedAtMs = active.startedAtMs,
+                updatedAtMs = nowMs,
+                listenedMs = active.listenedMs,
+                durationMs = active.observation.durationMs,
+                lastPositionMs = active.lastPositionMs,
+                closed = closed,
+            ),
+        )
+    }
+
+    private fun identityOf(observation: PlaybackObservation): String =
+        listOf(
+            observation.sourceKind.name,
+            observation.packageName.orEmpty(),
+            observation.title.trim(),
+            observation.artist.trim(),
+            observation.album.trim(),
+            observation.durationMs.toString(),
+        ).joinToString("\u0000")
+}
