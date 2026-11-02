@@ -9,17 +9,22 @@ import io.github.xhzair.refresholdphone.apps.AppCatalog
 import io.github.xhzair.refresholdphone.media.AndroidExternalPlaybackBridge
 import io.github.xhzair.refresholdphone.media.SingleSourcePlaybackGuard
 import io.github.xhzair.refresholdphone.prefs.UserPreferences
+import io.github.xhzair.refresholdphone.stats.ListeningHistoryRepository
 import io.github.xhzair.refresholdphone.system.AndroidSystemStatusSource
 import io.github.xhzair.refresholdphone.ui.HomeViewModel
 
 class MediaShellApplication : Application() {
     private lateinit var singleSourceGuard: SingleSourcePlaybackGuard
 
+    lateinit var listeningHistory: ListeningHistoryRepository
+
     override fun onCreate() {
         super.onCreate()
         val preferences = UserPreferences(this)
         singleSourceGuard = SingleSourcePlaybackGuard(this, preferences::selectedPackages)
         singleSourceGuard.start()
+        listeningHistory = ListeningHistoryRepository(this)
+        listeningHistory.closeStaleOnStart()
     }
 
     /** Keeps the process-level exclusivity guard alive after permission grants or restarts. */
