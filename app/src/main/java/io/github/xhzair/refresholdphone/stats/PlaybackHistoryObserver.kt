@@ -99,7 +99,7 @@ class PlaybackHistoryObserver(
         trackedMetaKey = null
         pausedReported = false
         lastEmitted = null
-        repository.flush()
+        repository.flushExternal()
     }
 
     /** Re-checks notification access; stops when it was revoked and starts when it was granted. */
@@ -210,8 +210,9 @@ class PlaybackHistoryObserver(
                 title = metadata.title,
                 artist = metadata.artist,
                 album = metadata.album,
-                // Duration metadata can change transiently while a track loads; it is not part of
-                // the session identity the tracker uses, so it is deliberately left at zero.
+                // Duration metadata can change transiently while a track loads, and duration is
+                // part of the tracker's session identity. It is deliberately left at zero so a
+                // transient duration change cannot split one external session into two.
                 durationMs = 0L,
                 positionMs = (state?.position ?: 0L).coerceAtLeast(0L),
                 playing = true,
@@ -256,7 +257,7 @@ class PlaybackHistoryObserver(
     }
 
     private fun closeTracked() {
-        repository.flush()
+        repository.flushExternal()
         trackedToken = null
         trackedMetaKey = null
         pausedReported = false

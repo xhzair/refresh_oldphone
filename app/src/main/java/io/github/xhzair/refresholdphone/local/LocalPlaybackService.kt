@@ -700,7 +700,7 @@ class LocalPlaybackService : Service() {
     /** Persists the active listening session; called only where playback really ends. */
     private fun flushListeningHistory() {
         val app = application as? MediaShellApplication ?: return
-        app.listeningHistory.flush()
+        app.listeningHistory.flushLocal()
     }
 
     private fun publishState() {

@@ -24,6 +24,10 @@ class ListeningSessionTracker(
         val identity = identityOf(observation)
         val current = active
         if (current != null && current.identity != identity) {
+            // A paused snapshot from a source that is no longer active (for example a late
+            // external pause after local playback started) must not close the active session.
+            // Only a playing observation may switch identities.
+            if (!observation.playing) return
             closeCurrent(nowMs)
         }
         val existing = active
@@ -51,7 +55,16 @@ class ListeningSessionTracker(
         }
     }
 
-    fun flush(nowMs: Long) {
+    /**
+     * Closes the active session, optionally only when it belongs to [sourceKind].
+     *
+     * A scoped flush ignores an active session from another source, so the shared tracker can be
+     * flushed by the local service and the external observer independently. A null [sourceKind]
+     * keeps the full-flush behavior used for clear and shutdown.
+     */
+    fun flush(nowMs: Long, sourceKind: ListeningSourceKind? = null) {
+        val current = active ?: return
+        if (sourceKind != null && current.observation.sourceKind != sourceKind) return
         closeCurrent(nowMs)
     }
 

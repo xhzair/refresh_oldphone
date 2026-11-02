@@ -54,6 +54,14 @@ class ListeningHistoryRepository(context: Context) {
     @MainThread
     fun flush() = tracker.flush(System.currentTimeMillis())
 
+    /** Closes the active session only when it belongs to an external source. */
+    @MainThread
+    fun flushExternal() = tracker.flush(System.currentTimeMillis(), ListeningSourceKind.EXTERNAL)
+
+    /** Closes the active session only when it belongs to local playback. */
+    @MainThread
+    fun flushLocal() = tracker.flush(System.currentTimeMillis(), ListeningSourceKind.LOCAL)
+
     /**
      * Loads the persisted summary for a month and posts it to [onResult] on the main thread.
      *

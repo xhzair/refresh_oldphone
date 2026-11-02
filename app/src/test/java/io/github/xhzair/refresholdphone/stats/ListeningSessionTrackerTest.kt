@@ -73,4 +73,48 @@ class ListeningSessionTrackerTest {
         tracker.flush(5_000)
         assertTrue(written.isEmpty())
     }
+
+    @Test
+    fun `scoped external flush leaves an active local session open`() {
+        tracker.onObserved(observed(packageName = null), 0)
+        tracker.flush(1_000, ListeningSourceKind.EXTERNAL)
+        assertTrue(written.isEmpty())
+        tracker.flush(5_000)
+        assertEquals(1, written.count { it.closed })
+        assertEquals(ListeningSourceKind.LOCAL, written.single().sourceKind)
+        assertEquals(5_000L, written.single().listenedMs)
+    }
+
+    @Test
+    fun `scoped external flush closes an active external session`() {
+        tracker.onObserved(observed(), 0)
+        tracker.flush(1_000, ListeningSourceKind.EXTERNAL)
+        assertEquals(1, written.count { it.closed })
+        assertEquals(ListeningSourceKind.EXTERNAL, written.single().sourceKind)
+        assertEquals(1_000L, written.single().listenedMs)
+        tracker.flush(5_000)
+        assertEquals(1, written.count { it.closed })
+    }
+
+    @Test
+    fun `paused external snapshot does not close a newly active local session`() {
+        tracker.onObserved(observed(), 0)
+        tracker.onObserved(observed(packageName = null), 1_000)
+        tracker.onObserved(observed(playing = false), 2_000)
+        tracker.flush(5_000)
+        assertEquals(2, written.count { it.closed })
+        assertEquals(ListeningSourceKind.LOCAL, written.last().sourceKind)
+        assertTrue(written.last().closed)
+        assertEquals(4_000L, written.last().listenedMs)
+    }
+
+    @Test
+    fun `paused external identity change is ignored while local session is active`() {
+        tracker.onObserved(observed(packageName = null), 0)
+        tracker.onObserved(observed(playing = false), 2_000)
+        tracker.flush(5_000)
+        assertEquals(1, written.count { it.closed })
+        assertEquals(ListeningSourceKind.LOCAL, written.single().sourceKind)
+        assertEquals(5_000L, written.single().listenedMs)
+    }
 }

@@ -29,7 +29,7 @@ class MediaShellApplication : Application() {
         listeningHistory = ListeningHistoryRepository(this)
         listeningHistory.closeStaleOnStart()
         playbackHistoryObserver = PlaybackHistoryObserver(this, listeningHistory) {
-            supportedPlaybackPackages + UserPreferences(this).selectedPackages()
+            supportedPlaybackPackages + preferences.selectedPackages()
         }
         playbackHistoryObserver.start()
     }
@@ -39,8 +39,8 @@ class MediaShellApplication : Application() {
 
     fun stopSingleSourceGuard() = singleSourceGuard.stop()
 
-    /** Starts external playback recording after notification access is granted. */
-    fun ensurePlaybackHistoryObserverStarted() = playbackHistoryObserver.start()
+    /** Re-checks notification access and starts external recording when it is granted. */
+    fun ensurePlaybackHistoryObserverStarted() = playbackHistoryObserver.refresh()
 
     /** Detaches the observer when notification access is revoked or the listener disconnects. */
     fun stopPlaybackHistoryObserver() = playbackHistoryObserver.stop()
