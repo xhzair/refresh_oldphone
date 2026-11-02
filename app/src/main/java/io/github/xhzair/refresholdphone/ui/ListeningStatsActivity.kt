@@ -35,6 +35,9 @@ class ListeningStatsActivity : AppCompatActivity() {
     private val selectedMonth = Calendar.getInstance()
     private var loadGeneration = 0
 
+    /** Scroll offset captured before recreation; applied once the first result renders. */
+    private var pendingScrollY = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityListeningStatsBinding.inflate(layoutInflater)
@@ -43,12 +46,35 @@ class ListeningStatsActivity : AppCompatActivity() {
 
         repository = (application as MediaShellApplication).listeningHistory
         selectedMonth.set(Calendar.DAY_OF_MONTH, 1)
+        restoreSelectedMonth(savedInstanceState)
 
         binding.back.setOnClickListener { finish() }
         binding.previousMonth.setOnClickListener { changeMonth(-1) }
         binding.nextMonth.setOnClickListener { changeMonth(1) }
         binding.clearHistory.setOnClickListener { confirmClear() }
+        binding.errorText.setOnClickListener { load() }
         renderMonthLabel()
+        showLoading()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt(STATE_YEAR, selectedMonth.get(Calendar.YEAR))
+        outState.putInt(STATE_MONTH_ZERO_BASED, selectedMonth.get(Calendar.MONTH))
+        outState.putInt(STATE_SCROLL_Y, binding.scroll.scrollY)
+    }
+
+    /**
+     * Restores the month before the first render and load, so a past month never flashes the
+     * current month after the Activity is recreated.
+     */
+    private fun restoreSelectedMonth(state: Bundle?) {
+        if (state == null) return
+        val year = state.getInt(STATE_YEAR, 0)
+        val monthZeroBased = state.getInt(STATE_MONTH_ZERO_BASED, -1)
+        if (year <= 0 || monthZeroBased !in 0..11) return
+        selectedMonth.set(year, monthZeroBased, 1)
+        pendingScrollY = state.getInt(STATE_SCROLL_Y, 0).coerceAtLeast(0)
     }
 
     override fun onResume() {
@@ -76,13 +102,61 @@ class ListeningStatsActivity : AppCompatActivity() {
         val generation = ++loadGeneration
         val year = selectedMonth.get(Calendar.YEAR)
         val monthZeroBased = selectedMonth.get(Calendar.MONTH)
+        showLoading()
         repository.loadMonth(year, monthZeroBased) { result ->
             // A late callback must not overwrite a newer month or a finished screen.
             if (isFinishing || isDestroyed || generation != loadGeneration) return@loadMonth
-            result.onSuccess(::render).onFailure {
-                binding.errorText.visibility = View.VISIBLE
-            }
+            result.onSuccess(::render).onFailure { showError() }
         }
+    }
+
+    /**
+     * Enters an explicit loading state at the start of every load, so the previous month's
+     * numbers can never sit under the newly selected month's heading.
+     */
+    private fun showLoading() {
+        binding.errorText.visibility = View.GONE
+        val placeholder = getString(R.string.listening_stats_placeholder)
+        binding.totalDuration.text = placeholder
+        binding.activeDays.text = placeholder
+        binding.sessionCount.text = placeholder
+        binding.longestSession.text = placeholder
+        val loading = getString(R.string.listening_stats_loading)
+        binding.topTracks.text = loading
+        binding.topArtists.text = loading
+        binding.topAlbums.text = loading
+        binding.sources.text = loading
+        binding.hoursChart.removeAllViews()
+        binding.hoursChart.contentDescription = loading
+    }
+
+    /**
+     * Keeps the failed month's label but clears every detail value before offering a retry, so a
+     * failure cannot leave the previous month's figures on screen.
+     */
+    private fun showError() {
+        val placeholder = getString(R.string.listening_stats_placeholder)
+        binding.totalDuration.text = placeholder
+        binding.activeDays.text = placeholder
+        binding.sessionCount.text = placeholder
+        binding.longestSession.text = placeholder
+        val empty = getString(R.string.listening_stats_empty)
+        binding.topTracks.text = empty
+        binding.topArtists.text = empty
+        binding.topAlbums.text = empty
+        binding.sources.text = placeholder
+        renderHours(LongArray(HOURS_PER_DAY))
+        binding.errorText.text = getString(R.string.listening_stats_error_retry)
+        binding.errorText.visibility = View.VISIBLE
+        applyPendingScroll()
+    }
+
+    /** Restores the pre-recreation scroll offset once, after the first page of content exists. */
+    private fun applyPendingScroll() {
+        val scrollY = pendingScrollY
+        pendingScrollY = 0
+        if (scrollY <= 0) return
+        binding.scroll.post { binding.scroll.scrollTo(0, scrollY) }
     }
 
     private fun render(summary: MonthlyListeningSummary) {
@@ -108,6 +182,7 @@ class ListeningStatsActivity : AppCompatActivity() {
         binding.topAlbums.text = formatRanked(summary.topAlbums)
         binding.sources.text = formatSources(summary.sources)
         renderHours(summary.hours)
+        applyPendingScroll()
     }
 
     private fun formatRanked(items: List<RankedListeningItem>): String {
@@ -161,20 +236,21 @@ class ListeningStatsActivity : AppCompatActivity() {
     }
 
     private fun renderHours(hours: LongArray) {
+        binding.hoursChart.removeAllViews()
+        val peak = hours.maxOrNull() ?: 0L
+        if (peak <= 0L) {
+            // Nothing to plot; an empty chart avoids a misleading flat line.
+            binding.hoursChart.contentDescription = describeHours(hours)
+            return
+        }
         val density = resources.displayMetrics.density
         val minHeight = (MIN_BAR_DP * density).toInt()
         val maxHeight = (MAX_BAR_DP * density).toInt()
-        val peak = hours.maxOrNull() ?: 0L
 
-        binding.hoursChart.removeAllViews()
         for (hour in 0 until HOURS_PER_DAY) {
             val listenedMs = hours.getOrElse(hour) { 0L }.coerceAtLeast(0L)
-            val height = if (peak <= 0L) {
-                minHeight
-            } else {
-                val scaled = (maxHeight - minHeight) * (listenedMs.toDouble() / peak)
-                minHeight + scaled.toInt()
-            }
+            val height = minHeight +
+                ((maxHeight - minHeight) * (listenedMs.toDouble() / peak)).toInt()
             val bar = View(this).apply {
                 setBackgroundColor(ContextCompat.getColor(this@ListeningStatsActivity, R.color.accent))
             }
@@ -186,6 +262,28 @@ class ListeningStatsActivity : AppCompatActivity() {
             }
             binding.hoursChart.addView(bar, params)
         }
+        binding.hoursChart.contentDescription = describeHours(hours)
+    }
+
+    /** Summarizes the chart for screen readers instead of exposing 24 purely decorative bars. */
+    private fun describeHours(hours: LongArray): String {
+        var peakHour = -1
+        var peakMs = 0L
+        var totalMs = 0L
+        for (hour in 0 until HOURS_PER_DAY) {
+            val listenedMs = hours.getOrElse(hour) { 0L }.coerceAtLeast(0L)
+            if (listenedMs > peakMs) {
+                peakMs = listenedMs
+                peakHour = hour
+            }
+            totalMs += listenedMs
+        }
+        if (peakHour < 0) return getString(R.string.listening_stats_hours_empty)
+        return getString(
+            R.string.listening_stats_hours_peak,
+            peakHour,
+            formatListeningDuration(totalMs),
+        )
     }
 
     private fun confirmClear() {
@@ -226,5 +324,10 @@ class ListeningStatsActivity : AppCompatActivity() {
         const val MIN_BAR_DP = 4
         const val MAX_BAR_DP = 80
         const val BAR_MARGIN_DP = 1
+
+        /** Saved-state keys are stable so recreation restores the same month across versions. */
+        const val STATE_YEAR = "listening_stats_year"
+        const val STATE_MONTH_ZERO_BASED = "listening_stats_month"
+        const val STATE_SCROLL_Y = "listening_stats_scroll_y"
     }
 }

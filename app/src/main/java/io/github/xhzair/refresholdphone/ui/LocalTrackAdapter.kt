@@ -10,22 +10,12 @@ import io.github.xhzair.refresholdphone.databinding.ItemLocalTrackBinding
 import io.github.xhzair.refresholdphone.local.LocalArtwork
 import io.github.xhzair.refresholdphone.local.LocalNowPlaying
 import io.github.xhzair.refresholdphone.local.LocalTrack
-import java.util.Locale
+import io.github.xhzair.refresholdphone.stats.formatListeningDuration
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 
-/** Formats a track duration as m:ss, or h:mm:ss for tracks of an hour or longer. */
-internal fun formatTrackDuration(durationMs: Long): String {
-    val totalSeconds = durationMs.coerceAtLeast(0L) / 1000L
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    return if (hours > 0) {
-        String.format(Locale.US, "%d:%02d:%02d", hours, minutes, seconds)
-    } else {
-        String.format(Locale.US, "%d:%02d", minutes, seconds)
-    }
-}
+/** Formats a track duration with the shared listening-duration formatter. */
+internal fun formatTrackDuration(durationMs: Long): String = formatListeningDuration(durationMs)
 
 /** Lists the device's local tracks and highlights the one the playback service reports. */
 class LocalTrackAdapter(

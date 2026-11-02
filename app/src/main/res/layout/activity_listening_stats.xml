@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/scroll"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true"
@@ -49,6 +50,7 @@
                 style="@style/TextAction"
                 android:layout_width="@dimen/touch_target"
                 android:layout_height="@dimen/touch_target"
+                android:contentDescription="@string/listening_stats_previous_month_description"
                 android:text="@string/listening_stats_previous_month"
                 android:textSize="24sp" />
 
@@ -58,6 +60,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:accessibilityLiveRegion="polite"
                 android:gravity="center"
                 android:textSize="22sp" />
 
@@ -66,6 +69,7 @@
                 style="@style/TextAction"
                 android:layout_width="@dimen/touch_target"
                 android:layout_height="@dimen/touch_target"
+                android:contentDescription="@string/listening_stats_next_month_description"
                 android:text="@string/listening_stats_next_month"
                 android:textSize="24sp" />
         </LinearLayout>
@@ -80,6 +84,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
+            android:accessibilityLiveRegion="polite"
+            android:clickable="true"
+            android:focusable="true"
             android:text="@string/listening_stats_error"
             android:textColor="@color/accent"
             android:textSize="16sp"
@@ -188,7 +195,7 @@
             android:layout_marginTop="8dp"
             android:background="@drawable/cover_background"
             android:gravity="bottom"
-            android:importantForAccessibility="no"
+            android:importantForAccessibility="yes"
             android:orientation="horizontal"
             android:padding="8dp" />
 

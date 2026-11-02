@@ -100,6 +100,10 @@
 <string name="listening_stats_month_format">%1$d年%2$d月</string>
 <string name="listening_stats_previous_month">‹</string>
 <string name="listening_stats_next_month">›</string>
+<string name="listening_stats_previous_month_description">上一月</string>
+<string name="listening_stats_next_month_description">下一月</string>
+<string name="listening_stats_loading">加载中…</string>
+<string name="listening_stats_placeholder">—</string>
 <string name="listening_stats_coverage">外部 App 仅在媒体桌面进程存活且通知授权时记录，数据可能不完整</string>
 <string name="listening_stats_summary_total">总收听时长 %1$s</string>
 <string name="listening_stats_summary_active_days">活跃天数 %1$d 天</string>
@@ -112,6 +116,9 @@
 <string name="listening_stats_section_hours">时段分布</string>
 <string name="listening_stats_empty">暂无记录</string>
 <string name="listening_stats_error">无法读取收听记录</string>
+<string name="listening_stats_error_retry">无法读取收听记录，点按重试</string>
+<string name="listening_stats_hours_empty">本月暂无收听时段数据</string>
+<string name="listening_stats_hours_peak">时段分布：%1$d 时收听最多，共 %2$s</string>
 <string name="listening_stats_source_local">本地音乐</string>
 <string name="listening_stats_source_external">外部应用</string>
 <string name="listening_stats_source_line">%1$s  %2$s</string>
