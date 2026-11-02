@@ -6,7 +6,7 @@
 
 - `refresh-oldphone-1.0.0.apk`（约 3.6 MB）
 - 最低 Android 6.0（API 23），`versionCode 2`，`versionName 1.0.0`
-- SHA-256：`F834EC43DDDF262235CA1E6013B313E837736BC14531471E28B7A7CD0CC2195F`
+- SHA-256：`6A909966DF9CA3CD5EF753ACC99D0E2CE93A34C5CBF50F179BBA590C2BBFD55B`
 - 签名证书 SHA-256：`7488F5369A8A74A3C35543ED96D087553BECC2351E1C7AFF6A9B5A3319CDFE53`
 
 ## 亮点
@@ -25,6 +25,7 @@
 - 本地音乐不再写入收听记录；旧版本留下的本机会话也不会显示。
 - 收听记录按来源关闭会话，避免外部观察与本地服务互相误关；暂停快照不会关闭另一来源的活跃会话。
 - 收听记录写入失败会记录日志并回调失败；关闭数据库前排空排队写入。
+- Android 15/16 edge-to-edge 下首页左侧 24dp 内边距丢失（时钟/日期贴边）已修复。
 
 ## 已知限制
 
