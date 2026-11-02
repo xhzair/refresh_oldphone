@@ -14,6 +14,7 @@
 - **单源互斥播放**：当已接入的媒体源开始播放时，自动暂停其他已接入源的播放（通过 MediaSession 暂停，不强制关闭应用）；桌面可见时立即生效，离开桌面后由进程级守卫继续执行。
 - **本地音乐**：内置播放器扫描系统音频库，提供全部歌曲列表、封面、播放/暂停、上一首/下一首和进度；前台服务 + MediaStyle 通知支持后台继续播放（安全锁屏控制待真机补测），并接入单源互斥。
 - **蓝牙音乐**：媒体源弹窗中的独立蓝牙输出源，显示已连接的 A2DP 设备名；选择后打开本地音乐库，音频由系统路由到蓝牙，耳机/车机按键通过 MediaSession/AVRCP 生效；未连接时提供蓝牙设置入口。
+- **收听记录（月度）**：本地记录本地音乐与进程存活时可观察的外部媒体 App 播放；设置页提供月报（总时长、活跃天数、播放次数、Top 歌曲/歌手/专辑、来源占比、24 小时分布），可清除。外部数据覆盖不完整会在页面明确标注；数据仅保存在本机。
 - **跨应用播放状态（可选）**：在系统设置中手动开启“通知使用权”后，读取系统暴露的 MediaSession，显示曲名、作者、封面、进度，并提供当前会话支持的播放/暂停、上一首、下一首控制；会话不支持的操作会隐藏或禁用。
 - **封面背景**：有播放封面时，用当前封面作为全屏暗化背景（复用同一张已缩放的封面图，30% 不透明度，不做模糊/动画；无播放时保持纯黑），文字对比度不受影响。
 - **Walkman 风格视觉**：近黑底 + 暖白细字时钟 + 圆形描边播放控制 + 琥珀色细进度条 + 方形封面；设置与媒体源入口使用描边/圆形按钮，保持 56dp 触控目标。
@@ -53,11 +54,16 @@
 
 ![蓝牙音乐源](docs/device-evidence/30-bluetooth-source.jpg)
 
+月度收听记录（MIX 2S 实测：本地 0:16 + QQ 音乐 0:11）：
+
+![月度收听记录](docs/device-evidence/32-listening-stats-month.jpg)
+
 更多设置页、播放卡片与恢复流程截图见 [真机验收记录](docs/device-testing-mix2s.md)。
 
 ## 不包含（0.1 范围）
 
 - 本地音乐的高级库功能：专辑、歌手、文件夹、搜索、歌单、随机/循环、无缝播放、歌词。
+- 年度回顾、分享图导出、收听记录云同步/跨设备。
 - RSS/Atom 播客订阅、下载与播放。
 - 网络电台收藏与播放。
 - 逆向第三方 App 私有接口、保存第三方账号/Cookie/令牌。
@@ -109,6 +115,7 @@
 6. 点击媒体源图标右侧的网格图标可打开应用抽屉，查看并启动手机中的其他应用；按返回键回到媒体桌面。
 7. 选择「本地音乐」并授予音频读取权限后，可在全部歌曲列表中点击播放；播放时桌面显示本地歌曲卡片，通知栏提供上一首/暂停/下一首。
 8. 选择「蓝牙音乐」查看当前 A2DP 输出；未连接时会提示并提供“打开蓝牙设置”入口。连接后由系统把本地播放路由到蓝牙设备。
+9. 打开“设置 → 收听记录”查看当月收听时长、活跃天数、Top 歌曲/歌手/专辑、来源占比与 24 小时分布；页面底部可清空记录。外部 App 仅在本应用进程存活且通知授权时记录。
 
 ## 恢复系统桌面
 
@@ -125,6 +132,7 @@
 - `READ_MEDIA_AUDIO`（Android 13+）/ `READ_EXTERNAL_STORAGE`（Android 12 及以下）：仅在选择「本地音乐」并授予后读取系统音频库，用于显示歌曲与播放；不上传、不修改文件。
 - `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_MEDIA_PLAYBACK` 与通知权限：仅用于本地播放的后台前台服务与 MediaStyle 通知；拒绝通知权限不阻塞播放。
 - Notification Listener（通知使用权）：可选，由用户在系统页面明确开启；仅用于读取 MediaSession 的播放元数据与发送受支持的播放控制命令。
+- 收听记录：本地 SQLite 保存播放元数据与时长（本地 + 可观察的外部会话），不上传、不联网；“设置 → 收听记录”可清空，卸载应用会删除。外部数据在进程被杀或未授权期间可能缺失。
 - 不申请通讯录、短信、电话、位置、相机、麦克风、蓝牙配对/连接等权限；蓝牙输出通过系统音频路由完成。
 - 无服务器、无账号、无广告、无遥测；配置仅保存在本机 SharedPreferences，详见 [docs/privacy.md](docs/privacy.md)。
 
@@ -142,10 +150,14 @@
 - 小宇宙 3.4.1 需要较新的 WebView：MIX 2S 原 Android System WebView 83 会导致登录页黑屏。本机已安装 Google 签名的 Android System WebView Beta 158（`com.google.android.webview.beta`）并切换实现，实测小宇宙可正常打开、播放，媒体桌面能显示其卡片、进度并参与单源互斥。恢复系统实现：`adb shell cmd webviewupdate set-webview-implementation com.google.android.webview`。
 - 本地音乐首版只列系统媒体库中的“全部歌曲”，无专辑/歌手/文件夹/搜索/歌单/随机循环/歌词；损坏或系统不支持的音频会暂停并保留错误状态，不自动跳歌。
 - 蓝牙音乐使用系统 A2DP 输出与 MediaSession/AVRCP；实际耳机/音箱的按键行为需硬件实测。MIX 2S 验收时没有已连接蓝牙音频设备，只验证了“未连接”提示与设置入口。
+- 月度收听记录：本地音乐数据准确；外部 App 只在本应用进程存活且通知授权时通过 MediaSession 观察，进程被杀/未授权期间会缺失，页面固定显示覆盖说明。首版只做月报，按会话开始时间归属月份；年度回顾、分享与云端同步未做。清除、旋转恢复和重启持久化已实现，但未全部逐项真机覆盖。
 
 ## 项目文档
 
 - 设计规格：[docs/superpowers/specs/2026-10-29-old-android-media-shell-design.md](docs/superpowers/specs/2026-10-29-old-android-media-shell-design.md)
+- 本地/蓝牙音乐规格：[docs/superpowers/specs/2026-10-31-local-and-bluetooth-music-design.md](docs/superpowers/specs/2026-10-31-local-and-bluetooth-music-design.md)
+- 月度收听记录规格：[docs/superpowers/specs/2026-11-02-monthly-listening-stats-design.md](docs/superpowers/specs/2026-11-02-monthly-listening-stats-design.md)
+- 月度收听记录计划：[docs/superpowers/plans/2026-11-02-monthly-listening-stats.md](docs/superpowers/plans/2026-11-02-monthly-listening-stats.md)
 - 实施计划：[docs/superpowers/plans/2026-10-29-media-shell-mvp.md](docs/superpowers/plans/2026-10-29-media-shell-mvp.md)
 - 隐私说明：[docs/privacy.md](docs/privacy.md)
 - 发布检查清单：[docs/release-checklist.md](docs/release-checklist.md)
