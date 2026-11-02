@@ -2,7 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 本地记录本地音乐与进程存活时可观测的外部 MediaSession 播放，提供安静的月度收听汇总页面（设置页入口），数据仅存本机 SQLite，并明确外部覆盖缺口。
+**Goal:** 本地记录进程存活时可观测的外部 MediaSession 播放，提供安静的月度收听汇总页面（设置页入口），数据仅存本机 SQLite，并明确外部覆盖缺口。
+
+> **2026-11-02 范围调整（用户决定）**：收听记录只统计外部 App，本地音乐不计入。计划中涉及本地播放上报/本地来源的 Task 4 等内容为历史记录，实际实现已移除本地上报并在查询层过滤本地行。
 
 **Architecture:** 新增 `stats/` 包：纯逻辑 `ListeningSessionTracker` 与 `ListeningStatsAggregator`、SQLite `ListeningStatsStore`、`ListeningHistoryRepository`、Application 级 `PlaybackHistoryObserver`。本地播放服务直接上报，外部源通过 MediaSession 观察；`ListeningStatsActivity` 展示月报。
 
