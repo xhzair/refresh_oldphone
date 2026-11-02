@@ -2,16 +2,16 @@ package io.github.xhzair.refresholdphone.stats
 
 import android.content.Context
 import androidx.annotation.MainThread
-import io.github.xhzair.refresholdphone.local.LocalTrack
 import java.util.Calendar
 import java.util.TimeZone
 
 /**
  * Owns the listening-history store and session tracker for the application process.
  *
- * Every public method is main-thread confined. [ListeningSessionTracker] keeps its active session
- * in memory and [ListeningStatsStore] enqueues database work onto a single worker executor, so
- * callers never block on disk I/O. Month-read and clear callbacks are posted back to the main
+ * Only external media sessions are recorded; local music deliberately stays out of listening
+ * history. Every public method is main-thread confined. [ListeningSessionTracker] keeps its active
+ * session in memory and [ListeningStatsStore] enqueues database work onto a single worker executor,
+ * so callers never block on disk I/O. Month-read and clear callbacks are posted back to the main
  * thread.
  */
 class ListeningHistoryRepository(context: Context) {
@@ -23,24 +23,6 @@ class ListeningHistoryRepository(context: Context) {
     @MainThread
     fun closeStaleOnStart() {
         store.closeStaleOpenSessions(System.currentTimeMillis())
-    }
-
-    /** Reports the current local-playback state for [track]. */
-    @MainThread
-    fun onLocal(track: LocalTrack, playing: Boolean, positionMs: Long) {
-        tracker.onObserved(
-            PlaybackObservation(
-                sourceKind = ListeningSourceKind.LOCAL,
-                packageName = null,
-                title = track.title,
-                artist = track.artist,
-                album = track.album,
-                durationMs = track.durationMs,
-                positionMs = positionMs,
-                playing = playing,
-            ),
-            System.currentTimeMillis(),
-        )
     }
 
     /** Reports an external playback observation; non-external observations are ignored. */
@@ -57,10 +39,6 @@ class ListeningHistoryRepository(context: Context) {
     /** Closes the active session only when it belongs to an external source. */
     @MainThread
     fun flushExternal() = tracker.flush(System.currentTimeMillis(), ListeningSourceKind.EXTERNAL)
-
-    /** Closes the active session only when it belongs to local playback. */
-    @MainThread
-    fun flushLocal() = tracker.flush(System.currentTimeMillis(), ListeningSourceKind.LOCAL)
 
     /**
      * Loads the persisted summary for a month and posts it to [onResult] on the main thread.
@@ -88,7 +66,12 @@ class ListeningHistoryRepository(context: Context) {
         store.loadSessions(start, end) { result ->
             onResult(
                 result.map { sessions ->
-                    ListeningStatsAggregator.summarize(sessions, year, monthZeroBased, zone)
+                    // Local music is intentionally excluded from listening history. Filter here as
+                    // well as at the producer so rows recorded before this policy never surface.
+                    val externalSessions = sessions.filter {
+                        it.sourceKind == ListeningSourceKind.EXTERNAL
+                    }
+                    ListeningStatsAggregator.summarize(externalSessions, year, monthZeroBased, zone)
                 },
             )
         }
