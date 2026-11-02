@@ -7,7 +7,9 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 
 /**
  * SQLite persistence for [ListeningSession] snapshots.
@@ -17,24 +19,37 @@ import java.util.concurrent.Executors
  * preserves progress after a process restart, while a closed one is final. Read callbacks are posted
  * to the main thread and include open and closed sessions inside the requested range;
  * [ListeningStatsAggregator] filters out sessions without positive listening time.
+ *
+ * [close] stops accepting new work and enqueues the database close behind all previously accepted
+ * work. Calls made after close are rejected: writes are logged and dropped, while reads and clears
+ * report failure on the main thread instead of leaving their callers waiting forever.
  */
 class ListeningStatsStore(context: Context) :
     SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val lock = Any()
+
+    /** Guarded by [lock]; set before the close task is enqueued so late work cannot slip in. */
+    private var closeRequested = false
 
     /** Enqueues a full snapshot upsert, replacing any previous snapshot for the session uid. */
     fun upsert(session: ListeningSession) {
-        enqueue {
-            runCatching {
+        val accepted = enqueue {
+            try {
                 writableDatabase.insertWithOnConflict(
                     TABLE_NAME,
                     null,
                     toValues(session),
                     SQLiteDatabase.CONFLICT_REPLACE,
                 )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to upsert session ${session.uid}", e)
             }
+        }
+        if (!accepted) {
+            Log.w(TAG, "Dropping upsert for session ${session.uid}: store is closed")
         }
     }
 
@@ -43,55 +58,67 @@ class ListeningStatsStore(context: Context) :
      * fabricating listening time, so only previously recorded progress counts.
      */
     fun closeStaleOpenSessions(nowMs: Long) {
-        enqueue {
-            runCatching {
-                writableDatabase.update(
-                    TABLE_NAME,
-                    ContentValues().apply {
-                        put(COLUMN_CLOSED, CLOSED)
-                        put(COLUMN_UPDATED_AT, nowMs)
-                    },
-                    "$COLUMN_CLOSED = ?",
-                    arrayOf(OPEN.toString()),
+        val accepted = enqueue {
+            try {
+                writableDatabase.execSQL(
+                    "UPDATE $TABLE_NAME SET $COLUMN_CLOSED = $CLOSED, $COLUMN_UPDATED_AT = ? " +
+                        "WHERE $COLUMN_CLOSED = $OPEN",
+                    arrayOf<Any>(nowMs),
                 )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to close stale listening sessions", e)
             }
+        }
+        if (!accepted) {
+            Log.w(TAG, "Dropping stale-session close: store is closed")
         }
     }
 
     /**
      * Enqueues a query for sessions whose [ListeningSession.startedAtMs] falls in
-     * `[startMs, endMs)`, ordered oldest first. [callback] always runs on the main thread.
+     * `[startMs, endMs)`, ordered oldest first.
+     *
+     * [onResult] always runs on the main thread with the loaded sessions, or with the failure that
+     * prevented the query. Rows with an unknown stored `source_kind` are skipped and logged.
      */
-    fun loadSessions(startMs: Long, endMs: Long, callback: (List<ListeningSession>) -> Unit) {
-        enqueue {
-            val sessions: List<ListeningSession> = runCatching {
-                readableDatabase.query(
-                    TABLE_NAME,
-                    COLUMNS,
-                    "$COLUMN_STARTED_AT >= ? AND $COLUMN_STARTED_AT < ?",
-                    arrayOf(startMs.toString(), endMs.toString()),
-                    null,
-                    null,
-                    "$COLUMN_STARTED_AT ASC",
-                ).use { cursor ->
-                    buildList {
-                        while (cursor.moveToNext()) {
-                            add(readSession(cursor))
-                        }
-                    }
-                }
-            }.getOrDefault(emptyList())
-            mainHandler.post { callback(sessions) }
+    fun loadSessions(
+        startMs: Long,
+        endMs: Long,
+        onResult: (Result<List<ListeningSession>>) -> Unit,
+    ) {
+        val accepted = enqueue {
+            val result = try {
+                Result.success(readSessions(startMs, endMs))
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load listening sessions", e)
+                Result.failure<List<ListeningSession>>(e)
+            }
+            mainHandler.post { onResult(result) }
+        }
+        if (!accepted) {
+            Log.w(TAG, "Dropping load request: store is closed")
+            mainHandler.post { onResult(closedFailure()) }
         }
     }
 
-    /** Enqueues deleting every persisted session, then posts [callback] on the main thread. */
-    fun clear(callback: (() -> Unit)? = null) {
-        enqueue {
-            runCatching { writableDatabase.delete(TABLE_NAME, null, null) }
-            if (callback != null) {
-                mainHandler.post { callback() }
+    /**
+     * Enqueues deleting every persisted session. [onResult] runs on the main thread and receives
+     * `true` only when the delete succeeded; failures and post-close calls receive `false`.
+     */
+    fun clear(onResult: (Boolean) -> Unit = {}) {
+        val accepted = enqueue {
+            val cleared = try {
+                writableDatabase.delete(TABLE_NAME, null, null)
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to clear listening sessions", e)
+                false
             }
+            mainHandler.post { onResult(cleared) }
+        }
+        if (!accepted) {
+            Log.w(TAG, "Dropping clear request: store is closed")
+            mainHandler.post { onResult(false) }
         }
     }
 
@@ -106,17 +133,69 @@ class ListeningStatsStore(context: Context) :
     }
 
     /**
-     * Stops accepting new work and releases the database. Late callers and late queued work are
-     * tolerated so shutdown never crashes the process.
+     * Stops accepting new work and releases the database.
+     *
+     * The close task is enqueued on the same single-thread executor as writes, so it runs only after
+     * every previously accepted upsert (including the flush from
+     * `ListeningHistoryRepository.shutdown`). If the executor already rejects work, the database is
+     * closed synchronously instead. Late callers and late queued work are tolerated so shutdown
+     * never crashes the process.
      */
     override fun close() {
-        runCatching { executor.shutdown() }
-        runCatching { super.close() }
+        synchronized(lock) {
+            if (closeRequested) return
+            closeRequested = true
+            try {
+                executor.execute { closeDatabase() }
+            } catch (e: RejectedExecutionException) {
+                Log.e(TAG, "Executor rejected close; closing database synchronously", e)
+                closeDatabase()
+            } finally {
+                executor.shutdown()
+            }
+        }
     }
 
-    private fun enqueue(block: () -> Unit) {
-        runCatching { executor.execute(block) }
+    /** Kotlin does not allow `super.close()` inside a lambda, so the executor task calls this. */
+    private fun closeDatabase() {
+        try {
+            super.close()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to close listening stats database", e)
+        }
     }
+
+    /** Runs [block] on the worker unless [close] already started; returns whether it was accepted. */
+    private fun enqueue(block: () -> Unit): Boolean = synchronized(lock) {
+        if (closeRequested) {
+            false
+        } else {
+            try {
+                executor.execute(block)
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to enqueue listening stats work", e)
+                false
+            }
+        }
+    }
+
+    private fun readSessions(startMs: Long, endMs: Long): List<ListeningSession> =
+        readableDatabase.query(
+            TABLE_NAME,
+            COLUMNS,
+            "$COLUMN_STARTED_AT >= ? AND $COLUMN_STARTED_AT < ?",
+            arrayOf(startMs.toString(), endMs.toString()),
+            null,
+            null,
+            "$COLUMN_STARTED_AT ASC",
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) {
+                    readSession(cursor)?.let(::add)
+                }
+            }
+        }
 
     private fun toValues(session: ListeningSession): ContentValues = ContentValues().apply {
         put(COLUMN_UID, session.uid)
@@ -133,26 +212,40 @@ class ListeningStatsStore(context: Context) :
         put(COLUMN_CLOSED, if (session.closed) CLOSED else OPEN)
     }
 
-    private fun readSession(cursor: Cursor): ListeningSession = ListeningSession(
-        uid = cursor.getString(INDEX_UID),
-        sourceKind = sourceKindOf(cursor.getString(INDEX_SOURCE_KIND)),
-        packageName = cursor.getString(INDEX_PACKAGE_NAME),
-        title = cursor.getString(INDEX_TITLE),
-        artist = cursor.getString(INDEX_ARTIST),
-        album = cursor.getString(INDEX_ALBUM),
-        startedAtMs = cursor.getLong(INDEX_STARTED_AT),
-        updatedAtMs = cursor.getLong(INDEX_UPDATED_AT),
-        listenedMs = cursor.getLong(INDEX_LISTENED_MS),
-        durationMs = cursor.getLong(INDEX_DURATION_MS),
-        lastPositionMs = cursor.getLong(INDEX_LAST_POSITION_MS),
-        closed = cursor.getInt(INDEX_CLOSED) == CLOSED,
-    )
+    /** Reads one row by column name; returns null when the stored source kind is unknown. */
+    private fun readSession(cursor: Cursor): ListeningSession? {
+        val sourceKind = sourceKindOf(
+            cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_SOURCE_KIND)),
+        ) ?: return null
+        return ListeningSession(
+            uid = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_UID)),
+            sourceKind = sourceKind,
+            packageName = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PACKAGE_NAME)),
+            title = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TITLE)),
+            artist = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ARTIST)),
+            album = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ALBUM)),
+            startedAtMs = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_STARTED_AT)),
+            updatedAtMs = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_UPDATED_AT)),
+            listenedMs = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_LISTENED_MS)),
+            durationMs = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_DURATION_MS)),
+            lastPositionMs = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_LAST_POSITION_MS)),
+            closed = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_CLOSED)) == CLOSED,
+        )
+    }
 
-    private fun sourceKindOf(raw: String?): ListeningSourceKind =
-        if (raw == ListeningSourceKind.EXTERNAL.name) ListeningSourceKind.EXTERNAL
-        else ListeningSourceKind.LOCAL
+    private fun sourceKindOf(raw: String?): ListeningSourceKind? {
+        val kind = ListeningSourceKind.entries.firstOrNull { it.name == raw }
+        if (kind == null) {
+            Log.w(TAG, "Skipping session with unknown source_kind: $raw")
+        }
+        return kind
+    }
+
+    private fun closedFailure(): Result<List<ListeningSession>> =
+        Result.failure(IllegalStateException("ListeningStatsStore is closed"))
 
     private companion object {
+        const val TAG = "ListeningStatsStore"
         const val DATABASE_NAME = "listening_stats.db"
         const val DATABASE_VERSION = 1
 
@@ -172,19 +265,6 @@ class ListeningStatsStore(context: Context) :
 
         const val OPEN = 0
         const val CLOSED = 1
-
-        const val INDEX_UID = 0
-        const val INDEX_SOURCE_KIND = 1
-        const val INDEX_PACKAGE_NAME = 2
-        const val INDEX_TITLE = 3
-        const val INDEX_ARTIST = 4
-        const val INDEX_ALBUM = 5
-        const val INDEX_STARTED_AT = 6
-        const val INDEX_UPDATED_AT = 7
-        const val INDEX_LISTENED_MS = 8
-        const val INDEX_DURATION_MS = 9
-        const val INDEX_LAST_POSITION_MS = 10
-        const val INDEX_CLOSED = 11
 
         val COLUMNS = arrayOf(
             COLUMN_UID,

@@ -1,6 +1,7 @@
 package io.github.xhzair.refresholdphone.stats
 
 import android.content.Context
+import androidx.annotation.MainThread
 import io.github.xhzair.refresholdphone.local.LocalTrack
 import java.util.Calendar
 import java.util.TimeZone
@@ -8,9 +9,10 @@ import java.util.TimeZone
 /**
  * Owns the listening-history store and session tracker for the application process.
  *
- * Local and external playback are reported here; the tracker turns observations into session
- * snapshots that [ListeningStatsStore] persists off the main thread. Month reads are also
- * asynchronous and their callbacks are already delivered on the main thread.
+ * Every public method is main-thread confined. [ListeningSessionTracker] keeps its active session
+ * in memory and [ListeningStatsStore] enqueues database work onto a single worker executor, so
+ * callers never block on disk I/O. Month-read and clear callbacks are posted back to the main
+ * thread.
  */
 class ListeningHistoryRepository(context: Context) {
     private val appContext = context.applicationContext
@@ -18,11 +20,13 @@ class ListeningHistoryRepository(context: Context) {
     private val tracker = ListeningSessionTracker(store::upsert)
 
     /** Closes sessions left open by a previous process; no listening time is invented. */
+    @MainThread
     fun closeStaleOnStart() {
         store.closeStaleOpenSessions(System.currentTimeMillis())
     }
 
     /** Reports the current local-playback state for [track]. */
+    @MainThread
     fun onLocal(track: LocalTrack, playing: Boolean, positionMs: Long) {
         tracker.onObserved(
             PlaybackObservation(
@@ -40,16 +44,31 @@ class ListeningHistoryRepository(context: Context) {
     }
 
     /** Reports an external playback observation; non-external observations are ignored. */
+    @MainThread
     fun onExternal(observation: PlaybackObservation) {
         if (observation.sourceKind != ListeningSourceKind.EXTERNAL) return
         tracker.onObserved(observation, System.currentTimeMillis())
     }
 
     /** Closes the active session if any, persisting its final state. */
+    @MainThread
     fun flush() = tracker.flush(System.currentTimeMillis())
 
-    /** Loads the persisted summary for a month; [callback] runs on the main thread. */
-    fun loadMonth(year: Int, monthZeroBased: Int, callback: (MonthlyListeningSummary) -> Unit) {
+    /**
+     * Loads the persisted summary for a month and posts it to [onResult] on the main thread.
+     *
+     * The month window is computed here for the query; [ListeningStatsAggregator.summarize]
+     * re-derives the same window when filtering, so both calculations must stay aligned.
+     *
+     * @throws IllegalArgumentException if [monthZeroBased] is outside `0..11`.
+     */
+    @MainThread
+    fun loadMonth(
+        year: Int,
+        monthZeroBased: Int,
+        onResult: (Result<MonthlyListeningSummary>) -> Unit,
+    ) {
+        require(monthZeroBased in 0..11) { "monthZeroBased must be in 0..11" }
         val zone = TimeZone.getDefault()
         val calendar = Calendar.getInstance(zone).apply {
             clear()
@@ -58,15 +77,37 @@ class ListeningHistoryRepository(context: Context) {
         val start = calendar.timeInMillis
         calendar.add(Calendar.MONTH, 1)
         val end = calendar.timeInMillis
-        store.loadSessions(start, end) { sessions ->
-            callback(ListeningStatsAggregator.summarize(sessions, year, monthZeroBased, zone))
+        store.loadSessions(start, end) { result ->
+            onResult(
+                result.map { sessions ->
+                    ListeningStatsAggregator.summarize(sessions, year, monthZeroBased, zone)
+                },
+            )
         }
     }
 
-    /** Deletes all persisted sessions; [callback] runs on the main thread when done. */
-    fun clear(callback: (() -> Unit)? = null) = store.clear(callback)
+    /**
+     * Clears persisted history and the tracker's active session.
+     *
+     * The tracker is flushed first so its active session becomes a final closed snapshot and is
+     * cleared from memory; the delete is then enqueued behind that upsert, so a pre-clear session
+     * cannot reappear when playback is observed again. [onResult] runs on the main thread and
+     * receives `true` only when the delete succeeded.
+     */
+    @MainThread
+    fun clear(onResult: (Boolean) -> Unit = {}) {
+        tracker.flush(System.currentTimeMillis())
+        store.clear(onResult)
+    }
 
-    /** Persists any active session and releases the store. */
+    /**
+     * Persists any active session and releases the store.
+     *
+     * The flush upsert is enqueued before the store's close task; the store's single-thread
+     * executor preserves that FIFO order so the final snapshot is written before the database
+     * closes.
+     */
+    @MainThread
     fun shutdown() {
         flush()
         store.close()
