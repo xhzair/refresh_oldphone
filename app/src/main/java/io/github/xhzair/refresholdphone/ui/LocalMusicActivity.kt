@@ -75,6 +75,7 @@ class LocalMusicActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        applySystemBars()
         renderBluetooth()
         load()
     }

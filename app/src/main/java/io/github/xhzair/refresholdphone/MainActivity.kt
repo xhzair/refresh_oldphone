@@ -12,6 +12,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.view.TouchDelegate
 import android.view.View
+
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -96,6 +97,14 @@ class MainActivity : AppCompatActivity() {
             dialog.applyImmersiveStatusBar()
         }
         viewModel.state.observe(this, ::render)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applySystemBars()
+        // MIUI can attach/re-show the status bar after the first hide request on a cold start.
+        binding.root.postDelayed({ if (!isFinishing && !isDestroyed) applySystemBars() }, 600L)
+        binding.root.postDelayed({ if (!isFinishing && !isDestroyed) applySystemBars() }, 2000L)
     }
 
     override fun onStart() {

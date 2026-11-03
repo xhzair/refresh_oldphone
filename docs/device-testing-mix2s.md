@@ -198,4 +198,5 @@
 - 空数据库月报（1.0.1）：清除应用数据并重新授权后，收听记录显示 0:00、0 天、0 次、最长 0:00 与“暂无记录”；证据 [35-empty-stats.jpg](device-evidence/35-empty-stats.jpg)。
 - 重启持久化（1.0.1）：默认桌面为本应用时重启，安全锁屏解锁后进入 `MainActivity`，`resolve-activity` 仍为 `io.github.xhzair.refresholdphone/.MainActivity`；证据 [36-reboot-home.jpg](device-evidence/36-reboot-home.jpg)。
 - 沉浸式弹窗（1.0.1）：媒体源弹窗、通知授权提示、清空记录确认弹窗显示时系统状态栏不再闪现；证据 [37-immersive-dialog.jpg](device-evidence/37-immersive-dialog.jpg)。
+- 状态栏隐藏（1.0.2）：首页冷启动后保持隐藏（[38-statusbar-hidden.jpg](device-evidence/38-statusbar-hidden.jpg)）；设置、应用抽屉、本地音乐、收听记录页统一隐藏；顶部下滑可临时显示状态栏并自动隐藏（[39-statusbar-transient.jpg](device-evidence/39-statusbar-transient.jpg)）。
 - 待补：真实蓝牙耳机/车机的 A2DP 输出与 AVRCP 按键（本机无已连接蓝牙音频设备）；Android 6/7 32 位、低内存、非 MIUI 与平板兼容矩阵。

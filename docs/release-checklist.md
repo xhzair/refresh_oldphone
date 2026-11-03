@@ -45,7 +45,7 @@ $env:ANDROID_USER_HOME = "<workspace>\.android-user-home"   # 避免写 ~/.andro
 
 - `package: name='io.github.xhzair.refresholdphone'`
 - `minSdkVersion:'23'`、`targetSdkVersion:'36'`
-- `versionName='1.0.1'`（`versionCode 3`）
+- `versionName='1.0.2'`（`versionCode 4`）
 - `application-icon` 指向本应用图标，且存在 HOME 与 LAUNCHER intent-filter。
 - 权限仅 `ACCESS_NETWORK_STATE`，以及通知监听服务的系统绑定权限。
 

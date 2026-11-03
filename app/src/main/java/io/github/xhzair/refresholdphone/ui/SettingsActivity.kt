@@ -36,6 +36,7 @@ class SettingsActivity : AppCompatActivity() {
         installedApps = AndroidInstalledAppSource(packageManager)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applyDesktopSystemBars()
 
         binding.back.setOnClickListener { finish() }
         binding.orientationGroup.setOnCheckedChangeListener { _, checkedId ->
@@ -80,6 +81,7 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        applyDesktopSystemBars()
         refreshFromPreferences()
     }
 

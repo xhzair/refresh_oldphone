@@ -42,6 +42,11 @@ class AppListActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        applySystemBars()
+    }
+
     private fun applySystemBars() {
         val controller = WindowCompat.getInsetsController(window, window.decorView)
         if (UserPreferences(applicationContext).hideStatusBar) {

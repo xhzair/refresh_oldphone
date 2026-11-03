@@ -4,7 +4,7 @@
 
 应用本身只提供轻量 HOME 桌面、设备状态和跨应用播放状态展示；音乐与播客仍由你已安装的官方 App（网易云音乐、QQ 音乐、小宇宙等）播放，本项目不重做登录、会员、版权或播放能力，也不下载、不分发第三方 APK。
 
-当前版本：1.0.1（首个公开版本后的修复版，最低 Android 6.0 / API 23）。
+当前版本：1.0.2（状态栏隐藏修复版，最低 Android 6.0 / API 23）。
 
 ## 功能
 
@@ -80,7 +80,7 @@
 
 最新签名 APK 见 [GitHub Releases](https://github.com/xhzair/refresh_oldphone/releases/latest)：
 
-- `refresh-oldphone-1.0.1.apk`，要求 Android 6.0+（API 23）。
+- `refresh-oldphone-1.0.2.apk`，要求 Android 6.0+（API 23）。
 - 先作为普通 App 安装并打开；确认首页正常后，再在“设置 → 默认桌面”中选择“媒体桌面”。
 - 校验值随 Release 说明提供；应用无广告、无账号、无网络上传。
 

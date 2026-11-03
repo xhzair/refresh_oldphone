@@ -79,6 +79,7 @@ class ListeningStatsActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        applySystemBars()
         // Playback may have been observed while this screen was in the background.
         load()
     }
