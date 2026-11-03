@@ -287,12 +287,14 @@ class ListeningStatsActivity : AppCompatActivity() {
     }
 
     private fun confirmClear() {
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.listening_stats_clear_title)
             .setMessage(R.string.listening_stats_clear_message)
             .setPositiveButton(R.string.listening_stats_clear_confirm) { _, _ -> clearHistory() }
             .setNegativeButton(R.string.settings_cancel, null)
-            .show()
+            .create()
+        dialog.show()
+        dialog.applyImmersiveStatusBar()
     }
 
     private fun clearHistory() {

@@ -165,7 +165,7 @@
 - 后台：切到 QQ 音乐/媒体桌面后本地播放继续，通知栏的 MediaStyle 控制可用；返回桌面按返回键恢复本地音乐页与播放卡片。
 - 单源互斥（双向）：本地播放中启动 QQ 音乐，QQ 进入 PLAYING，本地会话自动暂停在 12.3 秒；QQ 播放中打开本地音乐并点歌，本地进入 PLAYING，QQ 自动暂停在 47.8 秒。
 - 蓝牙：MIX 2S 当前没有已连接的 A2DP 音频设备；媒体源弹窗显示“蓝牙音乐（未连接）”，点击弹出“未连接蓝牙音频设备”并给出“打开蓝牙设置”入口（[30-bluetooth-source.jpg](device-evidence/30-bluetooth-source.jpg)）。设备名显示、蓝牙实际输出与耳机/车机 AVRCP 按键属于硬件实测项，本轮未覆盖。
-- 未覆盖：安全锁屏下的锁屏播放控制（设备设有密码/指纹，本轮只验证了切后台/离开桌面与通知控制）；建议后续由用户解锁后再补一次锁屏场景。
+- 未覆盖：安全锁屏下的锁屏播放控制（设备设有密码/指纹，本轮只验证了切后台/离开桌面与通知控制）；建议后续由用户解锁后再补一次锁屏场景。**2026-11-03 已补测：1.0.1 在安全锁屏显示媒体卡片，媒体键暂停/播放正常（见第 11 节）。**
 - 已修复小问题（2026-11-02）：从本地音乐页按 HOME 未回到媒体桌面；根因是 `MainActivity` 作为 HOME 未声明 `singleTask`，已加 `android:launchMode="singleTask"`，回归验证本地音乐/设置/应用抽屉/收听记录页按 HOME 均回到 `MainActivity`。
 
 ## 10. 月度收听记录验收（2026-11-02）
@@ -194,4 +194,8 @@
 - 进程：`force-stop` 后按 HOME 冷启动正常，默认桌面角色保留；重启后设备停留在安全锁屏的 `FallbackHome`，按 Android 预期需用户解锁后才会启动默认 HOME（与第 7 节一致）。
 - Android 16 模拟器（`sdk_gphone64_x86_64`，1080×2424）：签名 Release 1.0.0 可安装、设为默认 HOME 并启动；发现并修复 edge-to-edge 下首页左侧 24dp 内边距丢失（移除 `fitsSystemWindows`），复测时钟/日期/封面/底部图标不再贴边。
 - 签名 Release 安装（MIX 2S）：MIUI 的 `adb install` 被 `INSTALL_FAILED_USER_RESTRICTED` 拒绝后，改用 `adb push … /data/local/tmp` + `adb shell pm install -r /data/local/tmp/refresh-oldphone-1.0.0.apk` 成功；卸载 debug 包后安装，`versionName=1.0.0`、`versionCode=2`，设为默认 HOME，启动、媒体源弹窗、本地播放、子页按 HOME 返回均通过。收听记录页面沿用 debug 版验收；签名包为空数据库首次展示未单独截图。
-- 待补：安全锁屏下的媒体控制、真实蓝牙耳机/车机按键；签名 Release 重启后的默认 HOME 持久化（设备安全锁屏，未复测）；以及 Release 空数据库下收听记录页的首次展示。
+- 锁屏媒体控制（1.0.1，2026-11-03）：播放本地音乐后按电源键进入安全锁屏，锁屏显示“媒体桌面 / local-a / 未知歌手”卡片及上一首、暂停、下一首；媒体键暂停/播放时 MediaSession 在 `state=2/3` 间切换；证据 [34-lockscreen-media.jpg](device-evidence/34-lockscreen-media.jpg)。
+- 空数据库月报（1.0.1）：清除应用数据并重新授权后，收听记录显示 0:00、0 天、0 次、最长 0:00 与“暂无记录”；证据 [35-empty-stats.jpg](device-evidence/35-empty-stats.jpg)。
+- 重启持久化（1.0.1）：默认桌面为本应用时重启，安全锁屏解锁后进入 `MainActivity`，`resolve-activity` 仍为 `io.github.xhzair.refresholdphone/.MainActivity`；证据 [36-reboot-home.jpg](device-evidence/36-reboot-home.jpg)。
+- 沉浸式弹窗（1.0.1）：媒体源弹窗、通知授权提示、清空记录确认弹窗显示时系统状态栏不再闪现；证据 [37-immersive-dialog.jpg](device-evidence/37-immersive-dialog.jpg)。
+- 待补：真实蓝牙耳机/车机的 A2DP 输出与 AVRCP 按键（本机无已连接蓝牙音频设备）；Android 6/7 32 位、低内存、非 MIUI 与平板兼容矩阵。

@@ -31,6 +31,7 @@ import io.github.xhzair.refresholdphone.prefs.OrientationMode
 import io.github.xhzair.refresholdphone.prefs.UserPreferences
 import io.github.xhzair.refresholdphone.system.SystemActions
 import io.github.xhzair.refresholdphone.ui.AppListActivity
+import io.github.xhzair.refresholdphone.ui.applyImmersiveStatusBar
 import io.github.xhzair.refresholdphone.ui.HomeState
 import io.github.xhzair.refresholdphone.ui.HomeUiModelMapper
 import io.github.xhzair.refresholdphone.ui.HomeViewModel
@@ -87,10 +88,12 @@ class MainActivity : AppCompatActivity() {
         binding.next.setOnClickListener { viewModel.skipNext() }
         binding.settings.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
         binding.permissionPrompt.setOnClickListener {
-            AlertDialog.Builder(this).setTitle(R.string.permission_title)
+            val dialog = AlertDialog.Builder(this).setTitle(R.string.permission_title)
                 .setMessage(R.string.permission_explanation)
                 .setPositiveButton(R.string.open_settings) { _, _ -> actions.openNotificationAccessSettings() }
-                .setNegativeButton(R.string.cancel, null).show()
+                .setNegativeButton(R.string.cancel, null).create()
+            dialog.show()
+            dialog.applyImmersiveStatusBar()
         }
         viewModel.state.observe(this, ::render)
     }
@@ -252,11 +255,13 @@ class MainActivity : AppCompatActivity() {
         // Building entries here is allowed to touch the Bluetooth IPC: it happens only on tap.
         val entries = sourceEntries()
         if (entries.isEmpty()) {
-            AlertDialog.Builder(this)
+            val dialog = AlertDialog.Builder(this)
                 .setTitle(R.string.media_source_empty_title)
                 .setMessage(R.string.media_source_empty_message)
                 .setPositiveButton(R.string.settings_cancel, null)
-                .show()
+                .create()
+            dialog.show()
+            dialog.applyImmersiveStatusBar()
             return
         }
         val current = MediaSourceSelection.currentEntry(entries, currentSourceId())
@@ -285,6 +290,7 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton(R.string.settings_cancel, null)
             .create()
         dialog.show()
+        dialog.applyImmersiveStatusBar()
     }
 
     private fun selectSource(entry: MediaSourceEntry) {
